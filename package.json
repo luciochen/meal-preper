@@ -1,0 +1,36 @@
+{
+  "name": "meal-preper",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "import-recipes": "tsx scripts/import-recipes.ts",
+    "audit-recipes": "tsx scripts/audit-recipes.ts",
+    "delete-flagged-recipes": "tsx scripts/delete-flagged-recipes.ts",
+    "generate-images": "tsx scripts/generate-images.ts",
+    "select-top-recipes": "tsx scripts/select-top-recipes.ts"
+  },
+  "dependencies": {
+    "@fal-ai/client": "^1.9.4",
+    "@supabase/supabase-js": "^2.99.0",
+    "@types/papaparse": "^5.5.2",
+    "dotenv": "^17.3.1",
+    "next": "15.2.1",
+    "papaparse": "^5.5.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
