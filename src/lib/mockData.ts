@@ -21,6 +21,9 @@ export interface Recipe {
   summary?: string;
   fridgeLife?: { days: string; label: string };
   microwaveScore?: { level: "excellent" | "good" | "fair" | "poor"; label: string; tip: string };
+  spoonacularScore?: number;
+  aggregateLikes?: number;
+  sourceUrl?: string;
   extendedIngredients: Ingredient[];
   analyzedInstructions: { steps: { number: number; step: string }[] }[];
 }

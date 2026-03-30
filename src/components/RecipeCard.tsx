@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { Recipe } from "@/lib/mockData";
 import { formatTitle } from "@/lib/formatTitle";
+import { trackAddToMealPlan } from "@/lib/analytics";
 
 interface Props {
   recipe: Recipe;
@@ -12,91 +13,135 @@ interface Props {
 }
 
 export default function RecipeCard({ recipe, onOpen }: Props) {
-  const { addToMealPlan, isInMealPlan, getMealPlanServings } = useApp();
+  const { addToMealPlan, isInMealPlan } = useApp();
   const [expanded, setExpanded] = useState(false);
-  const [servings, setServings] = useState(getMealPlanServings(recipe.id) || 1);
+  const [servings, setServings] = useState(1);
   const inPlan = isInMealPlan(recipe.id);
+  const title = formatTitle(recipe.title);
+
+  const handleCardClick = () => {
+    if (expanded) { setExpanded(false); return; }
+    onOpen(recipe.id);
+  };
+
+  const handlePlusClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (inPlan) return;
+    setExpanded((v) => !v);
+  };
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!expanded) { setExpanded(true); return; }
     addToMealPlan(recipe, servings);
+    trackAddToMealPlan(recipe.id, recipe.title, servings);
     setExpanded(false);
   };
 
-  const fridgeColor =
-    Number(recipe.fridgeLife?.days) >= 5
-      ? "bg-green-100 text-green-700"
-      : Number(recipe.fridgeLife?.days) >= 3
-      ? "bg-yellow-100 text-yellow-700"
-      : "bg-red-100 text-red-700";
+  const adjust = (delta: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setServings((s) => Math.max(1, Math.min(10, s + delta)));
+  };
 
   return (
     <div
-      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-      onClick={() => onOpen(recipe.id)}
+      onClick={handleCardClick}
+      className="bg-white rounded-2xl overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
     >
+      {/* Image */}
       <div className="relative aspect-[4/3] bg-gray-100">
         {recipe.image ? (
           <Image
             src={recipe.image}
-            alt={recipe.title || "Recipe"}
+            alt={title || "Recipe"}
             fill
             className="object-cover"
-            sizes="(max-width: 640px) calc(50vw - 20px), (max-width: 1024px) calc(33vw - 20px), 300px"
+            sizes="(max-width: 640px) calc(50vw - 24px), (max-width: 1024px) calc(33vw - 24px), 340px"
             onError={(e) => {
               (e.target as HTMLImageElement).src = `https://placehold.co/400x300/e8f0e8/4a7c4a?text=${encodeURIComponent(recipe.title)}`;
             }}
           />
         ) : (
-          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-center">
             <span className="text-4xl">🍽️</span>
           </div>
         )}
-        {inPlan && (
-          <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-            In plan
-          </div>
-        )}
-      </div>
-
-      <div className="p-3">
-        <h3 className="font-bold text-navy text-sm leading-snug mb-2 line-clamp-2">
-          {formatTitle(recipe.title)}
-        </h3>
-        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-          <span className="text-xs text-gray-500">⏱ {recipe.readyInMinutes}m</span>
-          {recipe.fridgeLife && (
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${fridgeColor}`}>
-              🧊 {recipe.fridgeLife.label}
+        <div className="absolute top-2.5 right-2.5 flex flex-row items-center gap-1.5">
+          {inPlan && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: "#BAF06A", color: "#06723C" }}>
+              In meal plan
+            </span>
+          )}
+          {recipe.readyInMinutes != null && recipe.readyInMinutes > 0 && (
+            <span className="bg-white text-navy text-[10px] font-bold px-2 py-0.5 rounded-full">
+              {recipe.readyInMinutes} min
             </span>
           )}
         </div>
+      </div>
 
-        {expanded ? (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-              <button onClick={() => setServings((s) => Math.max(1, s - 1))} className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-50 font-bold text-sm">−</button>
-              <span className="px-3 text-sm font-semibold text-navy min-w-[2rem] text-center">{servings}</span>
-              <button onClick={() => setServings((s) => Math.min(10, s + 1))} className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-50 font-bold text-sm">+</button>
+      {/* Footer */}
+      <div className="p-3.5">
+        {/* Title row + action button */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-semibold text-navy text-sm leading-snug line-clamp-2 flex-1">
+            {title}
+          </p>
+          <button
+            onClick={handlePlusClick}
+            className={`flex-shrink-0 w-8 h-8 rounded-full border-[1.5px] inline-flex items-center justify-center transition-all ${
+              inPlan
+                ? "bg-white border-zest text-zest"
+                : expanded
+                ? "border-navy text-navy bg-navy/5"
+                : "border-gray-300 text-gray-500 hover:border-navy hover:text-navy"
+            }`}
+            aria-label={inPlan ? "In meal plan" : expanded ? "Cancel" : "Add to meal plan"}
+          >
+            {inPlan ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            )}
+          </button>
+        </div>
+
+        {/* Stepper + confirm (expanded, not yet in plan) */}
+        {expanded && !inPlan && (
+          <div
+            className="flex items-center gap-2 mt-2.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center border border-gray-200 rounded-full overflow-hidden">
+              <button
+                onClick={(e) => adjust(-1, e)}
+                className="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-navy font-bold text-sm transition-colors"
+              >
+                −
+              </button>
+              <span className="w-6 text-center text-sm font-semibold text-navy leading-none select-none">
+                {servings}
+              </span>
+              <button
+                onClick={(e) => adjust(1, e)}
+                className="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-navy font-bold text-sm transition-colors"
+              >
+                +
+              </button>
             </div>
             <button
               onClick={handleAdd}
-              className="flex-1 bg-navy text-white text-xs font-semibold py-2 rounded-lg hover:bg-navy/90 transition-colors"
+              className="flex-1 bg-navy text-white text-xs font-semibold py-1.5 rounded-full hover:bg-navy/90 transition-colors"
             >
-              Add {servings} servings
+              Add {servings} serving{servings !== 1 ? "s" : ""}
             </button>
           </div>
-        ) : (
-          <button
-            onClick={handleAdd}
-            className={`w-full text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
-              inPlan ? "bg-green-50 text-green-700 hover:bg-green-100" : "bg-navy text-white hover:bg-navy/90"
-            }`}
-          >
-            {inPlan ? <>✓ Added to plan</> : <><span className="text-lg leading-none">+</span> Add to meal</>}
-          </button>
         )}
+
       </div>
     </div>
   );

@@ -8,12 +8,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (apiKey) {
     const res = await fetch(
-      `https://api.spoonacular.com/recipes/${id}/information?apiKey=${apiKey}&includeNutrition=false`
+      `https://api.spoonacular.com/recipes/${id}/information?apiKey=${apiKey}&includeNutrition=false`,
+      { next: { revalidate: 86400 } }
     );
     if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const data = await res.json();
+    const image = data.image
+      ? (data.image as string).replace(/-\d+x\d+(\.\w+)$/, "-636x393$1")
+      : data.image;
     return NextResponse.json({
       ...data,
+      image,
+      sourceUrl: data.sourceUrl || data.spoonacularSourceUrl,
       fridgeLife: computeFridgeLife(data),
       microwaveScore: computeMicrowaveScore(data),
     });

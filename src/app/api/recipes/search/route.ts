@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { MOCK_RECIPES } from "@/lib/mockData";
+import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
 
 const DIET_TAG_MAP: Record<string, string[]> = {
   "vegan":          ["vegan"],
@@ -13,10 +14,12 @@ const DIET_TAG_MAP: Record<string, string[]> = {
 };
 
 function dbRowToRecipe(row: Record<string, unknown>) {
-  const steps = (row.steps as { number: number; step: string }[]) || [];
+  const t = getTranslation(row.translations as RecipeTranslations | null, DEFAULT_LOCALE);
+  const baseIngredients = (row.ingredients as { name: string }[]) ?? [];
+  const baseSteps = (row.steps as { number: number; step: string }[]) || [];
   return {
     id: row.id,
-    title: row.title,
+    title: t?.title ?? (row.title as string),
     image: row.image_url || undefined,
     readyInMinutes: row.minutes ?? 30,
     servings: row.servings ?? 4,
@@ -26,14 +29,14 @@ function dbRowToRecipe(row: Record<string, unknown>) {
     dishTypes: row.tags ?? [],
     fridgeLife: row.fridge_life,
     microwaveScore: row.microwave_score,
-    extendedIngredients: (row.ingredients as { name: string }[])?.map((ing, i) => ({
+    extendedIngredients: baseIngredients.map((ing, i) => ({
       id: i,
-      name: ing.name,
+      name: t?.ingredients?.[i]?.name ?? ing.name,
       amount: 0,
       unit: "",
       aisle: "",
-    })) ?? [],
-    analyzedInstructions: [{ steps }],
+    })),
+    analyzedInstructions: [{ steps: t?.steps ?? baseSteps }],
   };
 }
 

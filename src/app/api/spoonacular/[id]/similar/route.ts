@@ -7,11 +7,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (apiKey) {
     const res = await fetch(
-      `https://api.spoonacular.com/recipes/${id}/similar?apiKey=${apiKey}&number=4`
+      `https://api.spoonacular.com/recipes/${id}/similar?apiKey=${apiKey}&number=4`,
+      { next: { revalidate: 86400 } }
     );
     if (!res.ok) return NextResponse.json([]);
     const data = await res.json();
-    return NextResponse.json(data);
+    const results = (data as { id: number; title: string; imageType?: string }[]).map((r) => ({
+      ...r,
+      image: `https://spoonacular.com/recipeImages/${r.id}-312x231.${r.imageType ?? "jpg"}`,
+    }));
+    return NextResponse.json(results);
   }
 
   const numId = Number(id);

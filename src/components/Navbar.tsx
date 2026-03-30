@@ -9,21 +9,24 @@ export default function Navbar() {
   const { mealPlan } = useApp();
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 h-14">
-      <div className="max-w-5xl mx-auto px-4 h-full flex items-center justify-between">
-        <Link href="/" className="font-bold text-navy text-lg tracking-tight">
-          meal preper
+    <nav suppressHydrationWarning className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 h-14">
+      <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
+        <Link href="/" className="font-bold text-navy text-xl tracking-tight">
+          tangie
         </Link>
-        <div className="flex items-center gap-1">
-          <Link
-            href="/meal-plan"
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors relative ${
-              pathname === "/meal-plan" ? "bg-sage-100 text-navy" : "text-gray-500 hover:text-navy"
-            }`}
-          >
-            My meals
+        <div className="flex items-center gap-6">
+          <Link href="/meal-plan" className="flex items-center gap-2 group">
+            <span
+              className={`text-sm font-medium transition-colors ${
+                pathname === "/meal-plan"
+                  ? "text-navy"
+                  : "text-gray-500 group-hover:text-navy"
+              }`}
+            >
+              My meal plan
+            </span>
             {mealPlan.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-xs rounded-full flex items-center justify-center">
+              <span className="w-5 h-5 bg-zest text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
                 {mealPlan.length}
               </span>
             )}

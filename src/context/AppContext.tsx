@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { Recipe } from "@/lib/mockData";
+import { adjustScore } from "@/lib/recipeScores";
 
 export interface MealPlanItem {
   recipe: Recipe;
@@ -32,10 +33,8 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [preferences, setPreferencesState] = useState<UserPreferences>({ diets: [], cuisines: [], allergies: [] });
-  const [onboardingDone, setOnboardingDoneState] = useState(false);
+  const [onboardingDone, setOnboardingDoneState] = useState(true);
   const [mealPlan, setMealPlan] = useState<MealPlanItem[]>([]);
-  const [hydrated, setHydrated] = useState(false);
-
   useEffect(() => {
     try {
       const stored = localStorage.getItem("mealpreper_prefs");
@@ -45,7 +44,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const plan = localStorage.getItem("mealpreper_plan");
       if (plan) setMealPlan(JSON.parse(plan));
     } catch {}
-    setHydrated(true);
   }, []);
 
   const setPreferences = useCallback((prefs: UserPreferences) => {
@@ -75,6 +73,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const removeFromMealPlan = useCallback((recipeId: number | string) => {
+    adjustScore(recipeId, -3);
     setMealPlan((prev) => {
       const next = prev.filter((i) => String(i.recipe.id) !== String(recipeId));
       localStorage.setItem("mealpreper_plan", JSON.stringify(next));
@@ -97,8 +96,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const isInMealPlan = useCallback((recipeId: number | string) => mealPlan.some((i) => String(i.recipe.id) === String(recipeId)), [mealPlan]);
   const getMealPlanServings = useCallback((recipeId: number | string) => mealPlan.find((i) => String(i.recipe.id) === String(recipeId))?.servings ?? 0, [mealPlan]);
-
-  if (!hydrated) return null;
 
   return (
     <AppContext.Provider value={{

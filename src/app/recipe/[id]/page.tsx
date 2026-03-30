@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { Recipe, classifyIngredient } from "@/lib/mockData";
 
 import { formatTitle } from "@/lib/formatTitle";
+import { trackRecipeScrollDepth } from "@/lib/analytics";
 const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 const SECTION_ORDER = ["Produce", "Meat & Seafood", "Dairy & Eggs", "Pantry"];
 
@@ -21,10 +22,28 @@ export default function RecipePage() {
   const [servings, setServings] = useState(2);
   const [addExpanded, setAddExpanded] = useState(false);
   const inPlan = recipe ? isInMealPlan(recipe.id) : false;
+  const scrollFiredRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/recipes/${id}`)
+    scrollFiredRef.current = new Set();
+    const onScroll = () => {
+      const el = document.documentElement;
+      const pct = Math.round((el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100);
+      for (const milestone of [50, 100]) {
+        if (pct >= milestone && !scrollFiredRef.current.has(milestone)) {
+          scrollFiredRef.current.add(milestone);
+          trackRecipeScrollDepth(id, milestone);
+        }
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/spoonacular/${id}`)
       .then((r) => r.json())
       .then((d) => {
         setRecipe(d);
@@ -32,7 +51,7 @@ export default function RecipePage() {
       })
       .finally(() => setLoading(false));
 
-    fetch(`/api/recipes/${id}/similar`)
+    fetch(`/api/spoonacular/${id}/similar`)
       .then((r) => r.json())
       .then((d) => setSimilar(Array.isArray(d) ? d.slice(0, 4) : []));
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps

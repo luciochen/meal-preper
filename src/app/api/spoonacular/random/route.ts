@@ -7,7 +7,9 @@ export async function GET() {
 
   if (apiKey) {
     const params = new URLSearchParams({ apiKey, number: "8", tags: "main course,dinner" });
-    const res = await fetch(`https://api.spoonacular.com/recipes/random?${params}`);
+    const res = await fetch(`https://api.spoonacular.com/recipes/random?${params}`, {
+      next: { revalidate: 3600 },
+    });
     if (!res.ok) return NextResponse.json({ recipes: MOCK_RECIPES.slice(0, 8) });
     const data = await res.json();
     const recipes = (data.recipes || [])

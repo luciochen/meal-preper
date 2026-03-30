@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { MOCK_RECIPES } from "@/lib/mockData";
+import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
 
 function parseRawIngredient(raw: string): { amount: number; amountDisplay?: string; unit: string; parsedName: string } {
   const s = raw.trim().replace(/\s+/g, " ");
@@ -32,7 +33,7 @@ function parseRawIngredient(raw: string): { amount: number; amountDisplay?: stri
   }
 
   const rest = afterNum.replace(/^\s*\([^)]*\)\s*/, "").trim();
-  const UNITS = /^(tablespoons?|tbsps?|teaspoons?|tsps?|cups?|pounds?|lbs?|ounces?|oz|cloves?|cans?|slices?|pieces?|heads?|stalks?|bunches?|packages?|pkgs?|quarts?|pints?|gallons?|liters?|grams?|kg|ml)\b/i;
+  const UNITS = /^(tablespoons?|tbsps?|teaspoons?|tsps?|cups?|pounds?|lbs?|ounces?|oz|cloves?|cans?|slices?|pieces?|heads?|stalks?|bunches?|packages?|pkgs?|quarts?|pints?|gallons?|liters?|grams?|kg|ml|g)\b/i;
   const unitMatch = rest.match(UNITS);
   const unit = unitMatch ? unitMatch[1].toLowerCase() : "";
   const parsedName = unitMatch ? rest.slice(unitMatch[0].length).trim() : rest;
@@ -41,10 +42,31 @@ function parseRawIngredient(raw: string): { amount: number; amountDisplay?: stri
 }
 
 function dbRowToRecipe(row: Record<string, unknown>) {
-  const steps = (row.steps as { number: number; step: string }[]) || [];
+  const t = getTranslation(row.translations as RecipeTranslations | null, DEFAULT_LOCALE);
+  const baseIngredients = row.ingredients as { name: string; raw?: string; amount?: number; unit?: string }[] ?? [];
+  const baseSteps = (row.steps as { number: number; step: string }[]) || [];
+
+  const extendedIngredients = baseIngredients.map((ing, i) => {
+    const translatedName = t?.ingredients?.[i]?.name ?? ing.name;
+    const translatedRaw = t?.ingredients?.[i]?.raw ?? ing.raw;
+    // When a translation exists, always parse units from the English raw string
+    if (t && translatedRaw) {
+      const { amount, amountDisplay, unit, parsedName } = parseRawIngredient(translatedRaw);
+      return { id: i, name: parsedName || translatedName, raw: translatedRaw, amount, amountDisplay, unit, aisle: "" };
+    }
+    // No translation: use pre-structured amount/unit if available (preserves Chinese units as fallback)
+    if (ing.amount != null && ing.unit != null) {
+      return { id: i, name: translatedName, raw: translatedRaw ?? translatedName, amount: ing.amount, unit: ing.unit, aisle: "" };
+    }
+    const { amount, amountDisplay, unit, parsedName } = parseRawIngredient(translatedRaw ?? translatedName);
+    return { id: i, name: parsedName || translatedName, raw: translatedRaw ?? translatedName, amount, amountDisplay, unit, aisle: "" };
+  });
+
+  const steps = t?.steps ?? baseSteps;
+
   return {
     id: row.id,
-    title: row.title,
+    title: t?.title ?? (row.title as string),
     image: row.image_url || undefined,
     readyInMinutes: row.minutes ?? 30,
     servings: row.servings ?? 4,
@@ -54,10 +76,7 @@ function dbRowToRecipe(row: Record<string, unknown>) {
     dishTypes: row.tags ?? [],
     fridgeLife: row.fridge_life,
     microwaveScore: row.microwave_score,
-    extendedIngredients: (row.ingredients as { name: string; raw?: string }[])?.map((ing, i) => {
-      const { amount, amountDisplay, unit, parsedName } = parseRawIngredient(ing.raw ?? ing.name);
-      return { id: i, name: parsedName || ing.name, raw: ing.raw ?? ing.name, amount, amountDisplay, unit, aisle: "" };
-    }) ?? [],
+    extendedIngredients,
     analyzedInstructions: [{ steps }],
   };
 }

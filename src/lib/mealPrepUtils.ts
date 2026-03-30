@@ -83,14 +83,25 @@ const EXCLUDED_DISH_TYPES = new Set([
   "fingerfood", "snack", "breakfast", "brunch",
 ]);
 
+const EXCLUDE_TITLE_KEYWORDS = [
+  "tartare", "carpaccio", "ceviche", "smoothie", "cocktail", "salad dressing", "raw", "pizza",
+  "dip", "dressing", "marinade", "sauce", "gravy", "spread", "jam", "vinaigrette",
+  "bread", "biscuit", "pancake", "waffle", "oatmeal", "granola",
+  "pudding", "mousse", "parfait",
+];
+
 // Returns true if a recipe is suitable for weekly meal prep
 export function isMealPrepSuitable(recipe: { dishTypes?: string[]; title?: string }): boolean {
-  const types = (recipe.dishTypes || []).map((d) => d.toLowerCase());
-  // If any dish type is explicitly excluded, reject
+  const titleLower = (recipe.title ?? "").toLowerCase();
+  if (EXCLUDE_TITLE_KEYWORDS.some((k) => titleLower.includes(k))) return false;
+
+  // If dishTypes is missing/empty, trust the API-level type=main+course filter
+  if (!recipe.dishTypes || recipe.dishTypes.length === 0) return true;
+
+  const types = recipe.dishTypes.map((d) => d.toLowerCase());
   if (types.some((t) => EXCLUDED_DISH_TYPES.has(t))) return false;
-  // If dish types exist but none are meal-prep friendly, reject
   const mealPrepTypes = ["main course", "side dish", "soup", "lunch", "dinner"];
-  if (types.length > 0 && !types.some((t) => mealPrepTypes.some((m) => t.includes(m)))) return false;
+  if (!types.some((t) => mealPrepTypes.some((m) => t.includes(m)))) return false;
   return true;
 }
 
