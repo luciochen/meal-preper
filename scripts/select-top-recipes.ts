@@ -1,8 +1,8 @@
 /**
- * Select top 100 recipes by review score and enable only those.
+ * Score all recipes by Bayesian average rating and enable all of them.
  *
- * Reads RAW_interactions.csv to compute a Bayesian average rating per recipe,
- * then sets enabled=true for the top 100 and enabled=false for all others.
+ * Reads RAW_interactions.csv, computes a Bayesian average per recipe,
+ * stores the score in the `score` column, and sets enabled=true for all recipes.
  *
  * Usage:
  *   npm run select-top-recipes -- --interactions=/path/to/RAW_interactions.csv
@@ -10,7 +10,7 @@
  * Default interactions path: /Users/lucio/Documents/Programs/resources/RAW_interactions.csv
  *
  * Requires in .env.local: SUPABASE_URL, SUPABASE_ANON_KEY
- * Run scripts/migrations/add_enabled_column.sql in Supabase first.
+ * Run scripts/migrations/add_enabled_column.sql and add_score_column.sql first.
  */
 
 import * as fs from "fs";
@@ -29,7 +29,6 @@ if (!supabaseUrl || !supabaseKey) {
 }
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const TOP_N = 500;
 // Bayesian prior: assume each recipe has C "virtual" reviews at rating m.
 // This prevents recipes with 1 glowing review from beating recipes with 100 solid ones.
 const PRIOR_COUNT = 10;
@@ -124,24 +123,23 @@ async function fetchAllIds(): Promise<number[]> {
   return ids;
 }
 
-// ─── Update enabled flag in batches ──────────────────────────────────────────
+// ─── Upsert scores and enable all recipes in batches ─────────────────────────
 
-async function setEnabled(ids: number[], enabled: boolean): Promise<void> {
+async function upsertScores(rows: { id: number; score: number }[]): Promise<void> {
   const BATCH = 500;
   let done = 0;
-  for (let i = 0; i < ids.length; i += BATCH) {
-    const batch = ids.slice(i, i + BATCH);
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH);
     const { error } = await supabase
       .from("recipes")
-      .update({ enabled })
-      .in("id", batch);
+      .upsert(batch.map(({ id, score }) => ({ id, score, enabled: true })));
 
     if (error) {
-      console.error(`Batch update failed:`, error.message);
+      console.error(`Batch upsert failed:`, error.message);
       process.exit(1);
     }
     done += batch.length;
-    process.stdout.write(`  ${enabled ? "Enabling" : "Disabling"} ${done}/${ids.length}...\r`);
+    process.stdout.write(`  Updating ${done}/${rows.length}...\r`);
   }
   console.log();
 }
@@ -162,42 +160,38 @@ async function main() {
     .filter(([id]) => dbIdSet.has(id))
     .sort((a, b) => b[1] - a[1]);
 
-  const top100Ids = new Set(ranked.slice(0, TOP_N).map(([id]) => id));
-  const enableIds = allIds.filter((id) => top100Ids.has(id));
-  const disableIds = allIds.filter((id) => !top100Ids.has(id));
+  // All DB recipes: scored ones get their Bayesian score, unscored get the prior mean
+  const scoredIdSet = new Set(ranked.map(([id]) => id));
+  const unscoredIds = allIds.filter((id) => !scoredIdSet.has(id));
 
-  console.log(`\n  Recipes to enable  : ${enableIds.length}`);
-  console.log(`  Recipes to disable : ${disableIds.length}`);
+  const rows: { id: number; score: number }[] = [
+    ...ranked.map(([id, score]) => ({ id, score: parseFloat(score.toFixed(4)) })),
+    ...unscoredIds.map((id) => ({ id, score: PRIOR_MEAN })),
+  ];
 
-  // Print the top 100
-  console.log(`\n${"─".repeat(60)}`);
-  console.log(`TOP ${TOP_N} RECIPES BY BAYESIAN RATING`);
-  console.log(`${"─".repeat(60)}`);
-  console.log(`${"RANK".padEnd(6)}${"ID".padEnd(10)}${"SCORE".padEnd(8)}REVIEWS`);
-  console.log(`${"─".repeat(60)}`);
-  ranked.slice(0, TOP_N).forEach(([id, score], i) => {
-    const stats = scores.get(id)!;
-    // re-get original count from the scores map isn't possible directly, but we logged it
-    console.log(`${String(i + 1).padEnd(6)}${String(id).padEnd(10)}${score.toFixed(3).padEnd(8)}`);
+  console.log(`\n  Scored recipes     : ${ranked.length}`);
+  console.log(`  Unscored (default) : ${unscoredIds.length}`);
+  console.log(`  Total to enable    : ${rows.length}`);
+
+  console.log(`\nTop 20 recipes by Bayesian rating:`);
+  console.log(`${"─".repeat(40)}`);
+  console.log(`${"RANK".padEnd(6)}${"ID".padEnd(10)}SCORE`);
+  console.log(`${"─".repeat(40)}`);
+  ranked.slice(0, 20).forEach(([id, score], i) => {
+    console.log(`${String(i + 1).padEnd(6)}${String(id).padEnd(10)}${score.toFixed(4)}`);
   });
-  console.log(`${"─".repeat(60)}`);
+  console.log(`${"─".repeat(40)}`);
 
-  console.log(`\nDisabling ${disableIds.length} recipes...`);
-  await setEnabled(disableIds, false);
-
-  console.log(`Enabling ${enableIds.length} recipes...`);
-  await setEnabled(enableIds, true);
+  console.log(`\nUpserting scores and enabling all recipes...`);
+  await upsertScores(rows);
 
   // Save summary
   const outPath = path.resolve(process.cwd(), "scripts/top-recipes.json");
-  const summary = ranked.slice(0, TOP_N).map(([id, score], i) => ({
-    rank: i + 1,
-    id,
-    bayesian_score: parseFloat(score.toFixed(4)),
-  }));
-  fs.writeFileSync(outPath, JSON.stringify(summary, null, 2));
+  fs.writeFileSync(outPath, JSON.stringify(ranked.map(([id, score], i) => ({
+    rank: i + 1, id, bayesian_score: parseFloat(score.toFixed(4)),
+  })), null, 2));
 
-  console.log(`\n✓ Done. Top ${TOP_N} recipes enabled, rest hidden.`);
+  console.log(`\n✓ Done. All ${rows.length} recipes enabled with scores.`);
   console.log(`✓ Summary saved to scripts/top-recipes.json`);
 }
 

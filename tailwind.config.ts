@@ -12,9 +12,11 @@ const config: Config = {
           300: "#a8c8a8",
         },
         navy: "#0f172a",
+        zest: "#76C83A",
+        cream: "#FAF8F2",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-plus-jakarta)", "system-ui", "sans-serif"],
       },
     },
   },

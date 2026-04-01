@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createPublicClient } from "@/lib/supabase/server";
 import { MOCK_RECIPES } from "@/lib/mockData";
 
 function dbRowToRecipe(row: Record<string, unknown>) {
@@ -28,6 +28,7 @@ function dbRowToRecipe(row: Record<string, unknown>) {
 }
 
 export async function GET() {
+  const supabase = createPublicClient();
   if (!supabase) {
     return NextResponse.json({ recipes: MOCK_RECIPES.slice(0, 8) });
   }

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { Recipe, classifyIngredient } from "@/lib/mockData";
+import { UserRecipe } from "@/lib/userRecipes";
+import RecipeFormModal from "@/components/RecipeFormModal";
 import { formatTitle } from "@/lib/formatTitle";
 import { trackOpenRecipe, trackAddToMealPlan } from "@/lib/analytics";
 import { adjustScore } from "@/lib/recipeScores";
@@ -28,27 +30,41 @@ interface Props {
   recipeId: number | string;
   onClose: () => void;
   onOpenRecipe: (id: number | string) => void;
+  initialRecipe?: Recipe;
+  onRecipeSaved?: (recipe: UserRecipe) => void;
+  onRecipeDeleted?: () => void;
 }
 
-export default function RecipeModal({ recipeId, onClose, onOpenRecipe }: Props) {
-  const { addToMealPlan, isInMealPlan, getMealPlanServings } = useApp();
+export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRecipe, onRecipeSaved, onRecipeDeleted }: Props) {
+  const { addToMealPlan, isInMealPlan, getMealPlanServings, user } = useApp();
+  const [isEditing, setIsEditing] = useState(false);
   const openedAt = useRef<number>(Date.now());
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [similar, setSimilar] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [servings, setServings] = useState(1);
   const [addExpanded, setAddExpanded] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inPlan = recipe ? isInMealPlan(recipe.id) : false;
 
   const handleShare = async () => {
     const url = `${window.location.origin}/?recipe=${recipeId}`;
     await navigator.clipboard.writeText(url);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastVisible(true);
+    toastTimer.current = setTimeout(() => setToastVisible(false), 2000);
   };
 
   const fetchRecipe = useCallback((id: number | string) => {
+    // If caller provided the full recipe (user recipe), use it directly
+    if (initialRecipe) {
+      setRecipe(initialRecipe);
+      setServings(getMealPlanServings(initialRecipe.id) || 1);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setRecipe(null);
     setSimilar([]);
@@ -85,7 +101,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe }: Props) 
           setSimilar(list);
         });
     }
-  }, [getMealPlanServings]);
+  }, [getMealPlanServings, initialRecipe]);
 
   useEffect(() => { fetchRecipe(recipeId); }, [recipeId, fetchRecipe]);
 
@@ -124,6 +140,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe }: Props) 
   const steps = recipe?.analyzedInstructions?.[0]?.steps || [];
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
@@ -141,6 +158,26 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe }: Props) 
             <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
         </button>
+
+        {/* Edit button — only for own user recipes */}
+        {recipe?.is_user_recipe && user?.id === recipe.user_id && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="absolute top-3 right-14 z-10 w-9 h-9 bg-white/90 backdrop-blur-sm text-navy rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+            aria-label="Edit recipe"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+          </button>
+        )}
+
+        {/* Toast */}
+        <div className={`absolute bottom-5 left-1/2 -translate-x-1/2 z-20 pointer-events-none transition-all duration-300 ${toastVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+          <div className="bg-navy text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
+            Recipe link copied
+          </div>
+        </div>
 
         {/* Scrollable content */}
         <div className="overflow-y-auto flex-1">
@@ -190,20 +227,12 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe }: Props) 
                   </h1>
                   <button
                     onClick={handleShare}
-                    className={`flex-shrink-0 w-8 h-8 rounded-full border-[1.5px] inline-flex items-center justify-center transition-all ${linkCopied ? "border-green-500 text-green-500 bg-green-50" : "border-gray-300 text-gray-500 hover:border-navy hover:text-navy"}`}
+                    className="flex-shrink-0 w-8 h-8 rounded-full border-[1.5px] border-gray-300 text-gray-500 hover:border-navy hover:text-navy inline-flex items-center justify-center transition-all"
                     aria-label="Copy link"
                   >
-                    {linkCopied ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
-                        <polyline points="16 6 12 2 8 6"/>
-                        <line x1="12" y1="2" x2="12" y2="15"/>
-                      </svg>
-                    )}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18 8.25a2.75 2.75 0 1 0-2.693-2.193L8.42 9.464a2.75 2.75 0 1 0 0 5.072l6.887 3.407a2.75 2.75 0 1 0 .618-1.25L9.038 13.286a2.762 2.762 0 0 0 0-2.572l6.887-3.407A2.748 2.748 0 0 0 18 8.25z"/>
+                    </svg>
                   </button>
                 </div>
 
@@ -241,8 +270,24 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe }: Props) 
                   />
                 )}
 
-                {/* Ingredients */}
-                {(recipe.extendedIngredients?.length ?? 0) > 0 && (
+                {/* Ingredients — user recipe flat list */}
+                {recipe.is_user_recipe && (recipe.ingredients_json?.length ?? 0) > 0 && (
+                  <section>
+                    <h2 className="text-base font-bold text-navy mb-3">Ingredients</h2>
+                    <div className="divide-y divide-gray-100">
+                      {recipe.ingredients_json!.map((ing, i) => (
+                        <div key={i} className="py-2.5">
+                          <p className="text-sm text-gray-700">
+                            {[ing.quantity, ing.unit, ing.name].filter(Boolean).join(" ")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Ingredients — Spoonacular grouped */}
+                {!recipe.is_user_recipe && (recipe.extendedIngredients?.length ?? 0) > 0 && (
                   <section>
                     <h2 className="text-base font-bold text-navy mb-3">Ingredients</h2>
                     {(() => {
@@ -293,8 +338,23 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe }: Props) 
                   </section>
                 )}
 
-                {/* Cooking instructions */}
-                {steps.length > 0 ? (
+                {/* Cooking instructions — user recipe */}
+                {recipe.is_user_recipe && (recipe.instructions_json?.length ?? 0) > 0 && (
+                  <section>
+                    <h2 className="text-base font-bold text-navy mb-3">Cooking instructions</h2>
+                    <div className="divide-y divide-gray-100">
+                      {recipe.instructions_json!.map((s) => (
+                        <div key={s.step} className="flex gap-4 py-3.5">
+                          <span className="flex-shrink-0 text-sm text-gray-400 font-medium w-4 pt-px">{s.step}</span>
+                          <p className="text-sm text-gray-700 leading-relaxed">{s.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Cooking instructions — Spoonacular */}
+                {!recipe.is_user_recipe && steps.length > 0 ? (
                   <section>
                     <h2 className="text-base font-bold text-navy mb-3">Cooking instructions</h2>
                     <div className="divide-y divide-gray-100">
@@ -419,5 +479,26 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe }: Props) 
         )}
       </div>
     </div>
+
+    {/* Edit modal — overlays the recipe modal */}
+    {isEditing && recipe?.is_user_recipe && (
+      <RecipeFormModal
+        mode="edit"
+        editingRecipe={recipe}
+        sourceType={(recipe.source_type as "scratch" | "website" | "instagram") ?? "scratch"}
+        sourceUrl={recipe.source_url}
+        onClose={() => setIsEditing(false)}
+        onSaved={(saved) => {
+          setIsEditing(false);
+          onRecipeSaved?.(saved);
+        }}
+        onDeleted={() => {
+          setIsEditing(false);
+          onRecipeDeleted?.();
+          onClose();
+        }}
+      />
+    )}
+    </>
   );
 }

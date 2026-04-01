@@ -5,6 +5,8 @@ import { computeFridgeLife, computeMicrowaveScore, isMealPrepSuitable } from "@/
 const PAGE_SIZE = 16;
 
 const ALL_SPOON_CUISINES = ["italian", "french", "mediterranean", "mexican", "japanese", "korean", "indian", "thai", "american"];
+
+const BLOCKED_TITLES = new Set(["Saffron Chicken Tikka", "Pastel Caprese"]);
 // Chinese is excluded — served exclusively from Supabase
 
 function upgradeImageUrl(url: string | undefined): string | undefined {
@@ -79,11 +81,16 @@ export async function GET(req: NextRequest) {
 
     let merged = pools
       .flat()
+      .sort((a, b) => ((b.aggregateLikes as number) ?? 0) - ((a.aggregateLikes as number) ?? 0))
       .filter((r) => {
         const id = (r as { id: number }).id;
         if (seen.has(id)) return false;
         seen.add(id);
         return true;
+      })
+      .filter((r) => {
+        const title = (r.title as string) ?? "";
+        return !BLOCKED_TITLES.has(title) && !/salad/i.test(title);
       })
       .filter((r) => isMealPrepSuitable(r as Parameters<typeof isMealPrepSuitable>[0]))
       .filter((r) => {

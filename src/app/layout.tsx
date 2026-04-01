@@ -89,7 +89,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans">
         <AppProvider>
           <Navbar />
-          <main className="pt-14 min-h-screen">{children}</main>
+          <main className="pt-20 min-h-screen">{children}</main>
           <Footer />
         </AppProvider>
       </body>

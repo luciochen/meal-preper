@@ -11,7 +11,7 @@ export default function HomePage() {
           and we&apos;ll whip up a{" "}
           <span className="text-zest">meal prep plan</span> 🍱✨
         </h1>
-        <p className="mt-4 text-gray-500 text-base max-w-xl">
+        <p className="mt-4 text-navy/60 text-base max-w-xl">
           Browse hundreds of meal-prep friendly recipes, track fridge life, and
           get a personalised grocery list — all in one place.
         </p>

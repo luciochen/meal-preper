@@ -11,7 +11,7 @@ const DIETS = [
   { id: "vegetarian", label: "Vegetarian", icon: "🥦" },
   { id: "high protein", label: "High protein", icon: "💪" },
   { id: "low calorie", label: "Low calorie", icon: "⚡" },
-  { id: "easy", label: "Easy to cook", icon: "👨‍🍳" },
+  { id: "easy to cook", label: "Easy to cook", icon: "👨‍🍳" },
 ];
 
 const CUISINES = [

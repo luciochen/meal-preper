@@ -7,7 +7,7 @@
 //        -H "x-admin-key: <ADMIN_KEY>"
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createPublicClient } from "@/lib/supabase/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 const ADMIN_KEY = process.env.ADMIN_KEY;
@@ -58,6 +58,7 @@ ${JSON.stringify({ title: recipe.title, ingredients: recipe.ingredients, steps: 
 }
 
 export async function POST(req: NextRequest) {
+  const supabase = createPublicClient();
   if (!supabase) return NextResponse.json({ error: "No Supabase" }, { status: 503 });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

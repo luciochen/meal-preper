@@ -26,6 +26,13 @@ export interface Recipe {
   sourceUrl?: string;
   extendedIngredients: Ingredient[];
   analyzedInstructions: { steps: { number: number; step: string }[] }[];
+  // User recipe fields
+  is_user_recipe?: boolean;
+  user_id?: string;
+  source_type?: string;
+  source_url?: string;
+  ingredients_json?: { quantity: string; unit: string; name: string }[];
+  instructions_json?: { step: number; text: string }[];
 }
 
 export const MOCK_RECIPES: Recipe[] = [

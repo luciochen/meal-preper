@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createPublicClient } from "@/lib/supabase/server";
 import { MOCK_RECIPES } from "@/lib/mockData";
 
 export async function GET(
@@ -7,6 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const supabase = createPublicClient();
 
   if (!supabase) {
     const similar = MOCK_RECIPES.filter((r) => String(r.id) !== id).slice(0, 4);

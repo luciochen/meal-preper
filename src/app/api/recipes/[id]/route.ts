@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createPublicClient } from "@/lib/supabase/server";
 import { MOCK_RECIPES } from "@/lib/mockData";
 import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
 
@@ -83,6 +83,7 @@ function dbRowToRecipe(row: Record<string, unknown>) {
 
 async function fetchAndCacheImage(id: number | string, title: string): Promise<string | null> {
   const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
+  const supabase = createPublicClient();
   if (!unsplashKey || !supabase) return null;
 
   try {
@@ -107,6 +108,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const supabase = createPublicClient();
 
   if (!supabase) {
     const mock = MOCK_RECIPES.find((r) => String(r.id) === id);

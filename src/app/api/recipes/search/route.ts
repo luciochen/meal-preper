@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createPublicClient } from "@/lib/supabase/server";
 import { MOCK_RECIPES } from "@/lib/mockData";
 import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
 
@@ -41,6 +41,7 @@ function dbRowToRecipe(row: Record<string, unknown>) {
 }
 
 export async function GET(req: NextRequest) {
+  const supabase = createPublicClient();
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || "";
   const diet = searchParams.get("diet") || "";
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
     .from("recipes")
     .select("*")
     .eq("enabled", true)
-    .order("image_url", { ascending: false, nullsFirst: false });
+    .order("score", { ascending: false, nullsFirst: false });
 
   if (query) {
     dbQuery = dbQuery.textSearch("search_vec", query, { type: "websearch" });

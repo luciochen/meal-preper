@@ -183,7 +183,7 @@ export default function DesignSystemPage() {
           <button className="bg-navy text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-navy/90 transition-colors text-sm">
             Primary
           </button>
-          <button className="border border-gray-300 text-navy font-semibold px-5 py-2.5 rounded-xl hover:border-gray-400 transition-colors text-sm">
+          <button className="border border-gray-200 text-navy font-semibold px-5 py-2.5 rounded-2xl hover:border-gray-300 transition-colors text-sm">
             Secondary
           </button>
           <button className="text-sm text-zest font-semibold hover:underline">

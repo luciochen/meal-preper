@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { fal } from "@fal-ai/client";
-import { supabase } from "@/lib/supabase";
+import { createPublicClient } from "@/lib/supabase/server";
 import { computeFridgeLife, computeMicrowaveScore, isMealPrepSuitable } from "@/lib/mealPrepUtils";
 
 const ADMIN_KEY = process.env.ADMIN_KEY;
@@ -109,6 +109,7 @@ async function processInBatches<T, R>(
 }
 
 export async function POST(req: NextRequest) {
+  const supabase = createPublicClient();
   if (!supabase) return NextResponse.json({ error: "No Supabase" }, { status: 503 });
   if (!process.env.FAL_KEY) return NextResponse.json({ error: "No FAL_KEY" }, { status: 503 });
   if (!process.env.SPOONACULAR_API_KEY) return NextResponse.json({ error: "No SPOONACULAR_API_KEY" }, { status: 503 });
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
       const dishTypes = recipe.dishTypes || [];
       const diets: string[] = [];
 
-      const { error: insertError } = await supabase!.from("recipes").insert({
+      const { error: insertError } = await supabase.from("recipes").insert({
         title: recipe.title,
         ingredients: (recipe.extendedIngredients ?? []).map((ing) => ({
           name: ing.name,

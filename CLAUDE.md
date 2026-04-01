@@ -48,7 +48,7 @@ Next.js 15 App Router + Supabase + Tailwind CSS. Meal prep web app with recipe b
 ### Layout & Containers
 - Page container: `max-w-5xl mx-auto px-4`
 - Two-column detail: `flex flex-col lg:flex-row gap-5`, left col `lg:w-[360px] lg:flex-shrink-0`
-- Recipe grid: `grid grid-cols-2 sm:grid-cols-3 gap-3`
+- Recipe grid: `grid grid-cols-2 sm:grid-cols-3 gap-6`
 - Stat grid: `grid grid-cols-3 gap-3`
 
 ### Border Radius
