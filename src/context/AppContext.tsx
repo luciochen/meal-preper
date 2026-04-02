@@ -200,6 +200,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Auth actions ─────────────────────────────────────────────────────────
 
   const signUpWithGoogle = useCallback(async () => {
+    // Clear any stale local session cookies before OAuth so the new session
+    // is stored cleanly (old chunk cookies from previous attempts corrupt the JWT).
+    await supabaseRef.current.auth.signOut({ scope: "local" }).catch(() => {});
     await supabaseRef.current.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback` },
@@ -210,6 +213,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const supabase = supabaseRef.current;
     const signedInUser = pendingUser;
     if (!signedInUser) return { error: "No pending user" };
+
+    // Refresh the session before any DB calls to guarantee a valid JWT.
+    // Stale cookies from previous OAuth attempts can corrupt the stored token.
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+      setPendingUsername(false);
+      setPendingUser(null);
+      return { error: "Session expired. Please sign in again." };
+    }
 
     // Check if user already has a profile (e.g. returning user who hit a DB error on sign-in)
     const { data: ownProfile } = await supabase
