@@ -187,9 +187,18 @@ export default function RecipeFormModal({
     setSaving(true);
     setError("");
 
-    const sb = createClient();
+    // Safety net: always unblock the button after 15 s even if something hangs
+    const saveTimeout = setTimeout(() => {
+      setSaving(false);
+      showToast("Something went wrong. Please try again.");
+    }, 15000);
 
     try {
+      const sb = createClient();
+
+      // Ensure a fresh JWT before writing — stale tokens cause silent hangs
+      await sb.auth.refreshSession().catch(() => {});
+
       const ingredients = form.ingredients.filter((i) => i.name.trim());
       const instructions_json: UserRecipeInstruction[] = form.instructions
         .filter((s) => s.text.trim())
@@ -249,11 +258,18 @@ export default function RecipeFormModal({
         }
       }
 
+      clearTimeout(saveTimeout);
       showToast(mode === "edit" ? "Recipe updated!" : "Recipe added!");
       onSaved?.(savedRow as unknown as UserRecipe);
       setTimeout(onClose, 800);
-    } catch {
-      setError("Failed to save recipe. Please try again.");
+    } catch (err) {
+      clearTimeout(saveTimeout);
+      const msg = (err as { message?: string })?.message;
+      const userMsg = msg?.includes("auth") || msg?.includes("JWT") || msg?.includes("401")
+        ? "Session expired — please sign out and sign in again."
+        : "Failed to save recipe. Please try again.";
+      showToast(userMsg);
+      setError(userMsg);
     } finally {
       setSaving(false);
     }
