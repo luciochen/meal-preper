@@ -26,13 +26,13 @@ interface AppContextType {
   user: User | null;
   profile: UserProfile | null;
   authLoading: boolean;
-  pendingAction: string | null;    // action to resume after sign-in
+  pendingAction: string | null;
+  pendingUsername: boolean;
   clearPendingAction: () => void;
   signUpWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>;
-  pendingUsername: boolean;
-  completeSignUp: (username: string) => Promise<{ error?: string }>;
+  completeSignUp: (username: string) => Promise<{ error: string | null }>;
   cancelSignUp: () => Promise<void>;
+  signOut: () => Promise<void>;
 
   // Data
   preferences: UserPreferences;
@@ -111,6 +111,7 @@ async function dbDeletePlanItem(supabase: ReturnType<typeof createClient>, userI
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -122,7 +123,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const supabaseRef = useRef(createClient());
 
-  // Load data from Supabase for a fully signed-up user
   const loadFromSupabase = useCallback(async (userId: string) => {
     const supabase = supabaseRef.current;
     const [prefs, plan] = await Promise.all([
@@ -133,7 +133,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMealPlan(plan);
   }, []);
 
-  // Migrate localStorage data into Supabase on first sign-up
   const migrateFromLocalStorage = useCallback(async (userId: string) => {
     const supabase = supabaseRef.current;
     const lsPrefs = lsGetPrefs();
@@ -142,42 +141,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await Promise.all(lsPlan.map((item) => dbUpsertPlanItem(supabase, userId, item)));
     setPreferencesState(lsPrefs);
     setMealPlan(lsPlan);
-    // migrateFromLocalStorage used in completeSignUp below
   }, []);
 
-  // Initial session check + auth state subscription
   useEffect(() => {
     const supabase = supabaseRef.current;
-    // Track whether the initial getSession() has resolved, so onAuthStateChange
-    // doesn't double-call handleSignedIn for the same session on mount.
-    let initialSessionHandled = false;
 
     const handleSignedIn = async (signedInUser: User) => {
-      // Check if profile row exists (= completed sign-up)
-      const { data: profileRow } = await supabase
+      const { data: profileRow, error: profileErr } = await supabase
         .from("profiles").select("username").eq("user_id", signedInUser.id).maybeSingle();
+
+      // DB error — keep session alive, don't sign out
+      if (profileErr) return;
 
       if (profileRow) {
         setUser(signedInUser);
         setProfile({ username: profileRow.username });
+        setPendingUsername(false);
         await loadFromSupabase(signedInUser.id);
-        // Resume any action that was pending before sign-in
         const action = localStorage.getItem("tangie_pending_action");
         if (action) { localStorage.removeItem("tangie_pending_action"); setPendingAction(action); }
-      } else {
-        // No profile yet — prompt the user to choose a username
-        setUser(signedInUser);
-        setPendingUsername(true);
+        return;
       }
+
+      // No profile yet — show username modal
+      setPendingUser(signedInUser);
+      setPendingUsername(true);
     };
 
-    // Load initial session
-    supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "INITIAL_SESSION") {
         if (session?.user) {
           await handleSignedIn(session.user);
         } else {
-          // Signed out — use localStorage
           try {
             const stored = localStorage.getItem("mealpreper_prefs");
             if (stored) setPreferencesState(JSON.parse(stored));
@@ -187,32 +182,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (plan) setMealPlan(JSON.parse(plan));
           } catch {}
         }
-      })
-      .catch(() => {
-        // Network failure — fall back to localStorage so the UI isn't stuck
-        try {
-          const stored = localStorage.getItem("mealpreper_prefs");
-          if (stored) setPreferencesState(JSON.parse(stored));
-          const plan = localStorage.getItem("mealpreper_plan");
-          if (plan) setMealPlan(JSON.parse(plan));
-        } catch {}
-      })
-      .finally(() => {
-        initialSessionHandled = true;
         setAuthLoading(false);
-      });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session?.user) {
-        // Skip the first SIGNED_IN that fires on mount — already handled by getSession()
-        if (!initialSessionHandled) return;
+      } else if (event === "SIGNED_IN" && session?.user) {
         await handleSignedIn(session.user);
       } else if (event === "SIGNED_OUT") {
         setUser(null);
+        setPendingUser(null);
         setProfile(null);
+        setPendingUsername(false);
         setAuthLoading(false);
-        // Revert to localStorage
         setPreferencesState(lsGetPrefs());
         setMealPlan(lsGetPlan());
       }
@@ -225,41 +203,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Auth actions ─────────────────────────────────────────────────────────
 
   const signUpWithGoogle = useCallback(async () => {
-    const supabase = supabaseRef.current;
-    await supabase.auth.signInWithOAuth({
+    await supabaseRef.current.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   }, []);
 
+  const completeSignUp = useCallback(async (username: string): Promise<{ error: string | null }> => {
+    const supabase = supabaseRef.current;
+    const signedInUser = pendingUser;
+    if (!signedInUser) return { error: "No pending user" };
+
+    // Check uniqueness
+    const { data: existing } = await supabase
+      .from("profiles").select("user_id").eq("username", username).maybeSingle();
+    if (existing) return { error: "Username already taken" };
+
+    const { error: insertError } = await supabase
+      .from("profiles").insert({ user_id: signedInUser.id, username });
+    if (insertError) return { error: "Failed to create account. Please try again." };
+
+    setUser(signedInUser);
+    setProfile({ username });
+    setPendingUsername(false);
+    setPendingUser(null);
+    await migrateFromLocalStorage(signedInUser.id);
+    return { error: null };
+  }, [pendingUser, migrateFromLocalStorage]);
+
+  const cancelSignUp = useCallback(async () => {
+    try { await supabaseRef.current.auth.signOut(); } catch {}
+    setPendingUsername(false);
+    setPendingUser(null);
+  }, []);
+
   const clearPendingAction = useCallback(() => setPendingAction(null), []);
 
   const signOut = useCallback(async () => {
-    const supabase = supabaseRef.current;
-    await supabase.auth.signOut();
-  }, []);
-
-  const completeSignUp = useCallback(async (username: string): Promise<{ error?: string }> => {
-    const supabase = supabaseRef.current;
-    const currentUser = user;
-    if (!currentUser) return { error: "Not signed in" };
-    const { error } = await supabase.from("profiles").insert({ user_id: currentUser.id, username });
-    if (error) {
-      if (error.code === "23505") return { error: "Username already taken" };
-      return { error: "Something went wrong, please try again" };
-    }
-    setProfile({ username });
-    setPendingUsername(false);
-    await migrateFromLocalStorage(currentUser.id);
-    return {};
-  }, [user, migrateFromLocalStorage]);
-
-  const cancelSignUp = useCallback(async () => {
-    setPendingUsername(false);
-    setUser(null);
-    setProfile(null);
-    setAuthLoading(false);
-    try { await supabaseRef.current.auth.signOut(); } catch {}
+    await supabaseRef.current.auth.signOut();
   }, []);
 
   // ── Data actions (dual write) ─────────────────────────────────────────────
@@ -339,8 +320,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      user, profile, authLoading, pendingAction, clearPendingAction,
-      signUpWithGoogle, signOut, pendingUsername, completeSignUp, cancelSignUp,
+      user, profile, authLoading, pendingAction, pendingUsername, clearPendingAction,
+      signUpWithGoogle, completeSignUp, cancelSignUp, signOut,
       preferences, setPreferences,
       onboardingDone, setOnboardingDone,
       mealPlan, addToMealPlan, removeFromMealPlan, clearMealPlan, updateServings,

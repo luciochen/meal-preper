@@ -10,7 +10,6 @@ import RecipeModal from "@/components/RecipeModal";
 import AddRecipeModal from "@/components/AddRecipeModal";
 import RecipeFormModal from "@/components/RecipeFormModal";
 import ImportWebsiteModal from "@/components/ImportWebsiteModal";
-import AuthModal from "@/components/AuthModal";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 
 type Step = "idle" | "choose" | "scratch" | "website" | "confirm-import";
@@ -23,7 +22,6 @@ export default function MyRecipesPage() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [step, setStep] = useState<Step>("idle");
   const [scrapedData, setScrapedData] = useState<ScrapedRecipe | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Resume "add recipe" action after sign-in
   useEffect(() => {
@@ -49,12 +47,7 @@ export default function MyRecipesPage() {
   useEffect(() => { fetchRecipes(); }, [fetchRecipes]);
 
   const handleAddRecipe = () => {
-    if (!user) {
-      localStorage.setItem("tangie_pending_action", "add_recipe");
-      setShowAuthModal(true);
-    } else {
-      setStep("choose");
-    }
+    setStep("choose");
   };
 
   const handleRecipeSaved = (saved: UserRecipe) => {
@@ -74,17 +67,10 @@ export default function MyRecipesPage() {
         <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
           <p className="text-5xl mb-5">📖</p>
           <h1 className="text-2xl font-extrabold text-navy mb-2">Your recipes, all in one place</h1>
-          <p className="text-gray-500 text-sm mb-6 max-w-sm">
-            Sign in to save and manage your personal recipe collection.
+          <p className="text-gray-500 text-sm max-w-sm">
+            Save and manage your personal recipe collection.
           </p>
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="bg-navy text-white font-semibold px-5 py-3 rounded-xl hover:bg-navy/90 transition-colors"
-          >
-            Sign in
-          </button>
         </div>
-        {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
       </div>
     );
   }
@@ -92,20 +78,11 @@ export default function MyRecipesPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 pb-16 pt-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold text-navy">My recipes</h1>
-          {!loading && recipes.length > 0 && (
-            <p className="text-sm text-gray-400 mt-1">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""}</p>
-          )}
-        </div>
-        <button
-          onClick={handleAddRecipe}
-          className="flex items-center gap-2 border-2 border-navy text-navy font-semibold px-4 py-2 rounded-xl hover:bg-navy hover:text-white transition-all text-sm"
-        >
-          <span className="text-base leading-none">+</span>
-          Add recipe
-        </button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold text-navy">My recipes</h1>
+        {!loading && recipes.length > 0 && (
+          <p className="text-sm text-gray-400 mt-1">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""}</p>
+        )}
       </div>
 
       {/* Loading */}
@@ -168,8 +145,6 @@ export default function MyRecipesPage() {
       )}
 
       {/* Add recipe flow */}
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
-
       {step === "choose" && (
         <AddRecipeModal
           onClose={() => setStep("idle")}

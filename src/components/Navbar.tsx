@@ -4,13 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
-import AuthModal from "@/components/AuthModal";
+import LoginModal from "@/components/LoginModal";
 import UsernameModal from "@/components/UsernameModal";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { mealPlan, profile, authLoading, signOut, pendingUsername } = useApp();
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { mealPlan, profile, authLoading, pendingUsername, signOut } = useApp();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +58,6 @@ export default function Navbar() {
             {authLoading ? (
               <div className="w-16 h-7 rounded-xl bg-gray-200 animate-pulse" />
             ) : profile ? (
-              // Signed in — show username button + dropdown
               <div ref={dropdownRef} className="relative">
                 <button
                   onClick={() => setDropdownOpen((v) => !v)}
@@ -72,7 +71,7 @@ export default function Navbar() {
                 {dropdownOpen && (
                   <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-md border border-gray-100 py-1 w-36 z-50">
                     <button
-                      onClick={async () => { setDropdownOpen(false); try { await signOut(); } catch {} }}
+                      onClick={async () => { setDropdownOpen(false); await signOut(); }}
                       className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:text-navy hover:bg-gray-50 transition-colors"
                     >
                       Sign out
@@ -81,19 +80,18 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              // Signed out — show Sign up button
               <button
-                onClick={() => setShowAuthModal(true)}
+                onClick={() => setShowLoginModal(true)}
                 className="bg-navy text-white text-sm font-semibold px-3.5 py-1.5 rounded-xl hover:bg-navy/90 transition-colors"
               >
-                Sign up
+                Log in
               </button>
             )}
           </div>
         </div>
       </nav>
 
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
       {pendingUsername && <UsernameModal />}
     </>
   );
