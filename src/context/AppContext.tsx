@@ -150,10 +150,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { data: profileRow, error: profileErr } = await supabase
         .from("profiles").select("username").eq("user_id", signedInUser.id).maybeSingle();
 
-      // DB error — keep session alive, don't sign out
-      if (profileErr) return;
-
-      if (profileRow) {
+      if (!profileErr && profileRow) {
         setUser(signedInUser);
         setProfile({ username: profileRow.username });
         setPendingUsername(false);
@@ -163,7 +160,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // No profile yet — show username modal
+      // No profile yet (or DB error) — show username modal
       setPendingUser(signedInUser);
       setPendingUsername(true);
     };
@@ -214,10 +211,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const signedInUser = pendingUser;
     if (!signedInUser) return { error: "No pending user" };
 
-    // Check uniqueness
-    const { data: existing } = await supabase
+    // Check if user already has a profile (e.g. returning user who hit a DB error on sign-in)
+    const { data: ownProfile } = await supabase
+      .from("profiles").select("username").eq("user_id", signedInUser.id).maybeSingle();
+    if (ownProfile) {
+      setUser(signedInUser);
+      setProfile({ username: ownProfile.username });
+      setPendingUsername(false);
+      setPendingUser(null);
+      await loadFromSupabase(signedInUser.id);
+      return { error: null };
+    }
+
+    // Check username uniqueness
+    const { data: taken } = await supabase
       .from("profiles").select("user_id").eq("username", username).maybeSingle();
-    if (existing) return { error: "Username already taken" };
+    if (taken) return { error: "Username already taken" };
 
     const { error: insertError } = await supabase
       .from("profiles").insert({ user_id: signedInUser.id, username });
@@ -229,7 +238,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPendingUser(null);
     await migrateFromLocalStorage(signedInUser.id);
     return { error: null };
-  }, [pendingUser, migrateFromLocalStorage]);
+  }, [pendingUser, loadFromSupabase, migrateFromLocalStorage]);
 
   const cancelSignUp = useCallback(async () => {
     try { await supabaseRef.current.auth.signOut(); } catch {}

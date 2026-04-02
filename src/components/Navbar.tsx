@@ -10,6 +10,7 @@ import UsernameModal from "@/components/UsernameModal";
 export default function Navbar() {
   const pathname = usePathname();
   const { mealPlan, profile, authLoading, pendingUsername, signOut } = useApp();
+  const showAuthSkeleton = authLoading || pendingUsername;
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ export default function Navbar() {
             </Link>
 
             {/* Auth area */}
-            {authLoading ? (
+            {showAuthSkeleton ? (
               <div className="w-16 h-7 rounded-xl bg-gray-200 animate-pulse" />
             ) : profile ? (
               <div ref={dropdownRef} className="relative">
