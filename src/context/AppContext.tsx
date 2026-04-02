@@ -216,8 +216,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // Refresh the session before any DB calls to guarantee a valid JWT.
     // Stale cookies from previous OAuth attempts can corrupt the stored token.
-    const { error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError) {
+    const { data: { session: freshSession }, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !freshSession) {
       await supabase.auth.signOut({ scope: "local" }).catch(() => {});
       setPendingUsername(false);
       setPendingUser(null);
