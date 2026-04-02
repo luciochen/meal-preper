@@ -196,9 +196,6 @@ export default function RecipeFormModal({
     try {
       const sb = createClient();
 
-      // Ensure a fresh JWT before writing — stale tokens cause silent hangs
-      await sb.auth.refreshSession().catch(() => {});
-
       const ingredients = form.ingredients.filter((i) => i.name.trim());
       const instructions_json: UserRecipeInstruction[] = form.instructions
         .filter((s) => s.text.trim())
@@ -264,8 +261,11 @@ export default function RecipeFormModal({
       setTimeout(onClose, 800);
     } catch (err) {
       clearTimeout(saveTimeout);
-      const msg = (err as { message?: string })?.message;
-      const userMsg = msg?.includes("auth") || msg?.includes("JWT") || msg?.includes("401")
+      console.error("[RecipeFormModal] save error:", err);
+      const msg = (err as { message?: string; code?: string })?.message ?? "";
+      const code = (err as { code?: string })?.code ?? "";
+      const isAuth = msg.includes("auth") || msg.includes("JWT") || msg.includes("401") || code === "PGRST301";
+      const userMsg = isAuth
         ? "Session expired — please sign out and sign in again."
         : "Failed to save recipe. Please try again.";
       showToast(userMsg);
