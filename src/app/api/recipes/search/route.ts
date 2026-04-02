@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
-import { MOCK_RECIPES } from "@/lib/mockData";
 import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
 
 const DIET_TAG_MAP: Record<string, string[]> = {
@@ -51,18 +50,7 @@ export async function GET(req: NextRequest) {
   const microwaveOnly = searchParams.get("microwave") === "1";
 
   if (!supabase) {
-    let results = [...MOCK_RECIPES];
-    if (query) results = results.filter((r) => r.title.toLowerCase().includes(query.toLowerCase()));
-    if (diet) results = results.filter((r) => r.diets.some((d) => diet.split(",").includes(d)));
-    if (intolerances) {
-      const allergens = intolerances.split(",");
-      results = results.filter(
-        (r) => !allergens.some((a) =>
-          r.extendedIngredients.some((i) => i.name.toLowerCase().includes(a.toLowerCase()))
-        )
-      );
-    }
-    return NextResponse.json({ results: results.slice(0, 24) });
+    return NextResponse.json({ results: [] });
   }
 
   let dbQuery = supabase
@@ -96,7 +84,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await dbQuery.limit(200);
 
   if (error || !data) {
-    return NextResponse.json({ results: MOCK_RECIPES });
+    return NextResponse.json({ results: [] });
   }
 
   let results = data;
