@@ -264,10 +264,12 @@ export default function RecipeFormModal({
       console.error("[RecipeFormModal] save error:", err);
       const msg = (err as { message?: string; code?: string })?.message ?? "";
       const code = (err as { code?: string })?.code ?? "";
-      const isAuth = msg.includes("auth") || msg.includes("JWT") || msg.includes("401") || code === "PGRST301";
-      const userMsg = isAuth
-        ? "Session expired — please sign out and sign in again."
-        : "Failed to save recipe. Please try again.";
+      let userMsg = "Failed to save recipe. Please try again.";
+      if (msg.includes("secret API key") || msg.includes("service_role")) {
+        userMsg = "Configuration error — please contact support.";
+      } else if (msg.includes("auth") || msg.includes("JWT") || msg.includes("401") || code === "PGRST301") {
+        userMsg = "Session expired — please sign out and sign in again.";
+      }
       showToast(userMsg);
       setError(userMsg);
     } finally {
