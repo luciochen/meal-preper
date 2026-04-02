@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 
 export interface ScrapedRecipe {
   title: string;
-  description?: string;
-  imageUrl?: string;
+  description: string;
+  image_url: string | null;
   ingredients: string[];
   instructions: string[];
-  prepTimeMinutes?: number;
-  servings?: number;
-  sourceUrl: string;
+  prep_time: number | null;   // minutes
+  cook_time: number | null;   // minutes
+  servings: string | null;
+  source_url: string;
 }
 
 function isRecipeType(t: unknown): boolean {
@@ -17,91 +18,79 @@ function isRecipeType(t: unknown): boolean {
   return false;
 }
 
-function parseIsoDuration(s: string): number | undefined {
-  if (!s) return undefined;
+function parseDuration(s: unknown): number | null {
+  if (!s || typeof s !== "string") return null;
   const m = s.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
-  if (!m) return undefined;
-  return (parseInt(m[1] || "0") * 60) + parseInt(m[2] || "0");
+  if (!m) return null;
+  const mins = (parseInt(m[1] || "0") * 60) + parseInt(m[2] || "0");
+  return mins > 0 ? mins : null;
 }
 
 function extractInstructions(raw: unknown): string[] {
   if (!raw) return [];
-  if (typeof raw === "string") return [raw].filter(Boolean);
+  if (typeof raw === "string") return raw.trim() ? [raw.trim()] : [];
   if (!Array.isArray(raw)) return [];
   const out: string[] = [];
   for (const item of raw) {
-    if (typeof item === "string") { out.push(item); continue; }
+    if (typeof item === "string") { if (item.trim()) out.push(item.trim()); continue; }
     if (item["@type"] === "HowToStep" || item["@type"] === "HowToDirection") {
-      out.push(item.text || item.name || "");
+      const text = (item.text || item.name || "").trim();
+      if (text) out.push(text);
       continue;
     }
     if (item["@type"] === "HowToSection" && Array.isArray(item.itemListElement)) {
-      for (const step of item.itemListElement) out.push(step.text || step.name || "");
+      for (const step of item.itemListElement) {
+        const text = (step.text || step.name || "").trim();
+        if (text) out.push(text);
+      }
     }
   }
-  return out.map((s: string) => s.trim()).filter(Boolean);
+  return out;
 }
 
-function extractImage(imgRaw: unknown): string | undefined {
-  if (!imgRaw) return undefined;
-  if (typeof imgRaw === "string") return imgRaw || undefined;
-  if (Array.isArray(imgRaw)) {
-    for (const img of imgRaw) {
-      const url = typeof img === "string" ? img : (img as Record<string, string>)?.url;
+function extractImageUrl(img: unknown): string | null {
+  if (!img) return null;
+  if (typeof img === "string") return img || null;
+  if (Array.isArray(img)) {
+    for (const item of img) {
+      const url = typeof item === "string" ? item : (item as Record<string, string>)?.url;
       if (url) return url;
     }
-    return undefined;
+    return null;
   }
-  return (imgRaw as Record<string, string>)?.url || undefined;
+  return (img as Record<string, string>)?.url ?? null;
 }
 
-function parseJsonLdRecipe(data: Record<string, unknown>, url: string): ScrapedRecipe | null {
+function parseJsonLdBlock(data: Record<string, unknown>, url: string): ScrapedRecipe | null {
   if (!isRecipeType(data["@type"])) return null;
   const title = (data.name as string)?.trim();
   if (!title) return null;
 
-  const imageUrl = extractImage(data.image);
-  const ingredients = ((data.recipeIngredient as string[]) || []).map(String).filter(Boolean);
+  const ingredients = ((data.recipeIngredient as string[]) ?? [])
+    .map((s) => String(s).trim())
+    .filter(Boolean);
+
   const instructions = extractInstructions(data.recipeInstructions);
+  const image_url = extractImageUrl(data.image);
 
-  // Try totalTime first, then cookTime + prepTime combined, then either alone
-  let prepTimeMinutes: number | undefined;
-  if (data.totalTime) {
-    prepTimeMinutes = parseIsoDuration(data.totalTime as string);
-  } else if (data.cookTime || data.prepTime) {
-    const cook = parseIsoDuration((data.cookTime as string) || "");
-    const prep = parseIsoDuration((data.prepTime as string) || "");
-    prepTimeMinutes = (cook ?? 0) + (prep ?? 0) || undefined;
-  }
+  const prep_time = parseDuration(data.prepTime);
+  const cook_time = parseDuration(data.cookTime);
 
-  const yieldRaw = data.recipeYield;
-  let servings: number | undefined;
-  const yieldVal = Array.isArray(yieldRaw) ? yieldRaw[0] : yieldRaw;
-  if (yieldVal) {
-    const n = parseInt(String(yieldVal));
-    if (!isNaN(n)) servings = n;
-  }
+  // recipeYield can be "4 servings", "4", or ["4"]
+  const yieldRaw = Array.isArray(data.recipeYield) ? data.recipeYield[0] : data.recipeYield;
+  const servings = yieldRaw != null ? String(yieldRaw) : null;
 
   return {
     title,
-    description: (data.description as string)?.trim() || undefined,
-    imageUrl,
+    description: (data.description as string)?.trim() ?? "",
+    image_url,
     ingredients,
     instructions,
-    prepTimeMinutes,
+    prep_time,
+    cook_time,
     servings,
-    sourceUrl: url,
+    source_url: url,
   };
-}
-
-function extractMeta(html: string, property: string): string | undefined {
-  const re = new RegExp(
-    `<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']`,
-    "i"
-  );
-  const m = html.match(re) ||
-    html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`, "i"));
-  return m?.[1]?.trim() || undefined;
 }
 
 function scrapeJsonLd(html: string, url: string): ScrapedRecipe | null {
@@ -112,68 +101,52 @@ function scrapeJsonLd(html: string, url: string): ScrapedRecipe | null {
     try {
       let data = JSON.parse(match[1].trim());
 
-      // Unwrap @graph
       if (data["@graph"] && Array.isArray(data["@graph"])) {
         const node = data["@graph"].find((x: Record<string, unknown>) => isRecipeType(x["@type"]));
         if (node) data = node;
       }
-      // Unwrap top-level array
       if (Array.isArray(data)) {
         const node = data.find((x: Record<string, unknown>) => isRecipeType(x["@type"]));
         if (node) data = node;
       }
 
-      const recipe = parseJsonLdRecipe(data, url);
+      const recipe = parseJsonLdBlock(data, url);
       if (recipe) return recipe;
     } catch {
-      // malformed JSON — keep trying
+      // malformed JSON — keep looking
     }
   }
   return null;
 }
 
-// Best-effort HTML fallback: grab OG tags + visible text lists
-function scrapeHtmlFallback(html: string, url: string): ScrapedRecipe | null {
-  const title =
-    extractMeta(html, "og:title") ||
-    extractMeta(html, "twitter:title") ||
-    html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim();
-
-  if (!title) return null;
-
-  const imageUrl =
-    extractMeta(html, "og:image") ||
-    extractMeta(html, "twitter:image");
-
-  const description =
-    extractMeta(html, "og:description") ||
-    extractMeta(html, "description");
-
-  return {
-    title,
-    description,
-    imageUrl,
-    ingredients: [],
-    instructions: [],
-    sourceUrl: url,
-  };
+function extractMeta(html: string, prop: string): string | null {
+  const re = new RegExp(
+    `<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`,
+    "i"
+  );
+  const m =
+    html.match(re) ||
+    html.match(
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`, "i")
+    );
+  return m?.[1]?.trim() ?? null;
 }
-
-const USER_AGENTS = [
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-  "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
-];
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const url = body.url as string | undefined;
 
   if (!url || !/^https?:\/\//i.test(url)) {
-    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+    return NextResponse.json({ error: "invalid_url" }, { status: 400 });
   }
 
-  for (const ua of USER_AGENTS) {
+  const userAgents = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+  ];
+
+  for (const ua of userAgents) {
     try {
       const res = await fetch(url, {
         headers: {
@@ -186,30 +159,42 @@ export async function POST(request: Request) {
       });
 
       if (!res.ok) continue;
-
       const html = await res.text();
 
-      // Try JSON-LD first (most reliable)
-      const jsonLdResult = scrapeJsonLd(html, url);
-      if (jsonLdResult && (jsonLdResult.ingredients.length > 0 || jsonLdResult.instructions.length > 0)) {
-        // Fill missing image from OG if needed
-        if (!jsonLdResult.imageUrl) {
-          jsonLdResult.imageUrl = extractMeta(html, "og:image");
+      const recipe = scrapeJsonLd(html, url);
+      if (recipe) {
+        // Fill missing image from OG tags
+        if (!recipe.image_url) {
+          recipe.image_url = extractMeta(html, "og:image");
         }
-        return NextResponse.json(jsonLdResult);
+        if (recipe.ingredients.length > 0 || recipe.instructions.length > 0) {
+          return NextResponse.json(recipe);
+        }
       }
 
-      // Fall back to OG/meta tags
-      const htmlResult = scrapeHtmlFallback(html, url);
-      if (htmlResult) return NextResponse.json(htmlResult);
-
+      // Try OG-only fallback if JSON-LD had no recipe content
+      const title =
+        extractMeta(html, "og:title") ||
+        html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim();
+      if (title) {
+        const fallback: ScrapedRecipe = {
+          title,
+          description: extractMeta(html, "og:description") ?? "",
+          image_url: extractMeta(html, "og:image"),
+          ingredients: [],
+          instructions: [],
+          prep_time: null,
+          cook_time: null,
+          servings: null,
+          source_url: url,
+        };
+        return NextResponse.json(fallback);
+      }
     } catch {
-      // try next UA
+      // try next user-agent
     }
   }
 
-  return NextResponse.json(
-    { error: "No recipe found on this page. Try copying the ingredients manually." },
-    { status: 422 }
-  );
+  // If we got here with no result at all
+  return NextResponse.json({ error: "no_recipe_found" }, { status: 400 });
 }

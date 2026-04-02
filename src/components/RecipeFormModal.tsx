@@ -67,13 +67,14 @@ function recipeToForm(recipe: Recipe): FormState {
 }
 
 function scrapedToForm(scraped: ScrapedRecipe): FormState {
+  const totalTime = (scraped.prep_time ?? 0) + (scraped.cook_time ?? 0);
   return {
     title: scraped.title || "",
     description: scraped.description || "",
     cuisine: "",
     dietTags: [],
-    readyInMinutes: scraped.prepTimeMinutes ? String(scraped.prepTimeMinutes) : "",
-    servings: scraped.servings ? String(scraped.servings) : "",
+    readyInMinutes: totalTime > 0 ? String(totalTime) : "",
+    servings: scraped.servings ? String(parseInt(scraped.servings) || scraped.servings) : "",
     ingredients: scraped.ingredients.map(parseIngredientString),
     instructions: scraped.instructions.map((text) => ({ text })),
   };
@@ -110,7 +111,7 @@ export default function RecipeFormModal({
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>(
-    mode === "edit" ? (editingRecipe?.image || "") : (scrapedData?.imageUrl || "")
+    mode === "edit" ? (editingRecipe?.image || "") : (scrapedData?.image_url || "")
   );
 
   const [saving, setSaving] = useState(false);

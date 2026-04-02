@@ -3,12 +3,19 @@
 import { useState } from "react";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_url: "Please enter a valid URL",
+  no_recipe_found: "We couldn't find a recipe on this page. Try another URL or add it manually.",
+  fetch_failed: "Something went wrong. Please try again.",
+};
+
 interface Props {
   onClose: () => void;
   onImported: (data: ScrapedRecipe) => void;
+  onAddManually: () => void;
 }
 
-export default function ImportWebsiteModal({ onClose, onImported }: Props) {
+export default function ImportWebsiteModal({ onClose, onImported, onAddManually }: Props) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,12 +36,13 @@ export default function ImportWebsiteModal({ onClose, onImported }: Props) {
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        setError(data.error || "We couldn't import this recipe. Try adding it manually.");
+        const code = data.error as string;
+        setError(ERROR_MESSAGES[code] ?? ERROR_MESSAGES.fetch_failed);
       } else {
         onImported(data as ScrapedRecipe);
       }
     } catch {
-      setError("We couldn't import this recipe. Try adding it manually.");
+      setError(ERROR_MESSAGES.fetch_failed);
     } finally {
       setLoading(false);
     }
@@ -66,13 +74,20 @@ export default function ImportWebsiteModal({ onClose, onImported }: Props) {
               type="url"
               value={url}
               onChange={(e) => { setUrl(e.target.value); if (error) setError(""); }}
-              placeholder="https://example.com/recipes/pasta"
+              placeholder="Paste a recipe URL"
               autoFocus
-              className={`w-full border rounded-xl px-4 py-3 text-sm text-navy placeholder-gray-400 outline-none transition-colors ${
+              disabled={loading}
+              className={`w-full border rounded-xl px-4 py-3 text-sm text-navy placeholder-gray-400 outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
                 error ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-navy"
               }`}
             />
-            {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+            {error ? (
+              <p className="mt-1.5 text-xs text-red-500">{error}</p>
+            ) : (
+              <p className="mt-1.5 text-xs text-gray-400">
+                Works with AllRecipes, BBC Good Food, Food Network, and most recipe sites
+              </p>
+            )}
           </div>
 
           <button
@@ -83,13 +98,22 @@ export default function ImportWebsiteModal({ onClose, onImported }: Props) {
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                Fetching recipe…
+                Importing…
               </>
             ) : (
               "Import recipe"
             )}
           </button>
         </form>
+
+        <div className="mt-4 text-center">
+          <button
+            onClick={onAddManually}
+            className="text-sm text-gray-400 hover:text-navy transition-colors"
+          >
+            Add manually instead
+          </button>
+        </div>
       </div>
     </div>
   );
