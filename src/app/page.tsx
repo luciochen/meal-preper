@@ -9,7 +9,7 @@ export default function HomePage() {
           Pick the recipes you love,{" "}
           <br />
           and we&apos;ll whip up a{" "}
-          <span className="text-zest">meal prep plan</span> 🍱✨
+          <span className="text-zest">meal prep plan</span> 🥗✨
         </h1>
         <p className="mt-4 text-navy/60 text-base max-w-xl">
           Browse hundreds of meal-prep friendly recipes, track fridge life, and
