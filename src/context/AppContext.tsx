@@ -139,7 +139,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         "User";
       setUser(signedInUser);
       setProfile({ displayName });
-      await loadFromSupabase(signedInUser.id);
+
+      // Refresh the token before any DB calls — INITIAL_SESSION can fire with
+      // a stale JWT (e.g. right after OAuth redirect when old cookies linger),
+      // causing 401s on all subsequent REST requests.
+      const { data: { session: fresh } } = await supabase.auth.refreshSession();
+      if (fresh) {
+        await loadFromSupabase(fresh.user.id);
+      }
+
       const action = localStorage.getItem("tangie_pending_action");
       if (action) { localStorage.removeItem("tangie_pending_action"); setPendingAction(action); }
     };

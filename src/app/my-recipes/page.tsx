@@ -36,14 +36,19 @@ export default function MyRecipesPage() {
   const fetchRecipes = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    const sb = createClient();
-    const { data } = await sb
-      .from("user_recipes")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    setRecipes((data as UserRecipe[] || []).map(userRecipeToRecipe));
-    setLoading(false);
+    try {
+      const sb = createClient();
+      const { data } = await sb
+        .from("user_recipes")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      setRecipes((data as UserRecipe[] || []).map(userRecipeToRecipe));
+    } catch {
+      setRecipes([]);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { fetchRecipes(); }, [fetchRecipes]);
