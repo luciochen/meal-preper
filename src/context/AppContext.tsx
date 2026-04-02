@@ -18,7 +18,7 @@ export interface UserPreferences {
 }
 
 export interface UserProfile {
-  username: string;
+  displayName: string;
 }
 
 interface AppContextType {
@@ -27,11 +27,8 @@ interface AppContextType {
   profile: UserProfile | null;
   authLoading: boolean;
   pendingAction: string | null;
-  pendingUsername: boolean;
   clearPendingAction: () => void;
-  signUpWithGoogle: () => Promise<void>;
-  completeSignUp: (username: string) => Promise<{ error: string | null }>;
-  cancelSignUp: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 
   // Data
@@ -111,11 +108,9 @@ async function dbDeletePlanItem(supabase: ReturnType<typeof createClient>, userI
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [pendingUser, setPendingUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [pendingUsername, setPendingUsername] = useState(false);
 
   const [preferences, setPreferencesState] = useState<UserPreferences>({ diets: [], cuisines: [], allergies: [] });
   const [onboardingDone, setOnboardingDoneState] = useState(true);
@@ -133,36 +128,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMealPlan(plan);
   }, []);
 
-  const migrateFromLocalStorage = useCallback(async (userId: string) => {
-    const supabase = supabaseRef.current;
-    const lsPrefs = lsGetPrefs();
-    const lsPlan = lsGetPlan();
-    await dbSavePrefs(supabase, userId, lsPrefs);
-    await Promise.all(lsPlan.map((item) => dbUpsertPlanItem(supabase, userId, item)));
-    setPreferencesState(lsPrefs);
-    setMealPlan(lsPlan);
-  }, []);
-
   useEffect(() => {
     const supabase = supabaseRef.current;
 
     const handleSignedIn = async (signedInUser: User) => {
-      const { data: profileRow, error: profileErr } = await supabase
-        .from("profiles").select("username").eq("user_id", signedInUser.id).maybeSingle();
-
-      if (!profileErr && profileRow) {
-        setUser(signedInUser);
-        setProfile({ username: profileRow.username });
-        setPendingUsername(false);
-        await loadFromSupabase(signedInUser.id);
-        const action = localStorage.getItem("tangie_pending_action");
-        if (action) { localStorage.removeItem("tangie_pending_action"); setPendingAction(action); }
-        return;
-      }
-
-      // No profile yet (or DB error) — show username modal
-      setPendingUser(signedInUser);
-      setPendingUsername(true);
+      const displayName =
+        signedInUser.user_metadata?.full_name ||
+        signedInUser.user_metadata?.name ||
+        signedInUser.email ||
+        "User";
+      setUser(signedInUser);
+      setProfile({ displayName });
+      await loadFromSupabase(signedInUser.id);
+      const action = localStorage.getItem("tangie_pending_action");
+      if (action) { localStorage.removeItem("tangie_pending_action"); setPendingAction(action); }
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: { user: import("@supabase/supabase-js").User } | null) => {
@@ -183,11 +162,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setAuthLoading(false);
       } else if (event === "SIGNED_IN" && session?.user) {
         await handleSignedIn(session.user);
+        setAuthLoading(false);
       } else if (event === "SIGNED_OUT") {
         setUser(null);
-        setPendingUser(null);
         setProfile(null);
-        setPendingUsername(false);
         setAuthLoading(false);
         setPreferencesState(lsGetPrefs());
         setMealPlan(lsGetPlan());
@@ -200,64 +178,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── Auth actions ─────────────────────────────────────────────────────────
 
-  const signUpWithGoogle = useCallback(async () => {
-    // Clear any stale local session cookies before OAuth so the new session
-    // is stored cleanly (old chunk cookies from previous attempts corrupt the JWT).
+  const signInWithGoogle = useCallback(async () => {
     await supabaseRef.current.auth.signOut({ scope: "local" }).catch(() => {});
     await supabaseRef.current.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
-  }, []);
-
-  const completeSignUp = useCallback(async (username: string): Promise<{ error: string | null }> => {
-    const supabase = supabaseRef.current;
-    const signedInUser = pendingUser;
-    if (!signedInUser) return { error: "No pending user" };
-
-    // Refresh the session before any DB calls to guarantee a valid JWT.
-    // Stale cookies from previous OAuth attempts can corrupt the stored token.
-    const { data: { session: freshSession }, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError || !freshSession) {
-      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
-      setPendingUsername(false);
-      setPendingUser(null);
-      return { error: "Session expired. Please sign in again." };
-    }
-
-    // Check if user already has a profile (e.g. returning user who hit a DB error on sign-in)
-    const { data: ownProfile } = await supabase
-      .from("profiles").select("username").eq("user_id", signedInUser.id).maybeSingle();
-    if (ownProfile) {
-      setUser(signedInUser);
-      setProfile({ username: ownProfile.username });
-      setPendingUsername(false);
-      setPendingUser(null);
-      await loadFromSupabase(signedInUser.id);
-      return { error: null };
-    }
-
-    // Check username uniqueness
-    const { data: taken } = await supabase
-      .from("profiles").select("user_id").eq("username", username).maybeSingle();
-    if (taken) return { error: "Username already taken" };
-
-    const { error: insertError } = await supabase
-      .from("profiles").insert({ user_id: signedInUser.id, username });
-    if (insertError) return { error: "Failed to create account. Please try again." };
-
-    setUser(signedInUser);
-    setProfile({ username });
-    setPendingUsername(false);
-    setPendingUser(null);
-    await migrateFromLocalStorage(signedInUser.id);
-    return { error: null };
-  }, [pendingUser, loadFromSupabase, migrateFromLocalStorage]);
-
-  const cancelSignUp = useCallback(async () => {
-    try { await supabaseRef.current.auth.signOut(); } catch {}
-    setPendingUsername(false);
-    setPendingUser(null);
   }, []);
 
   const clearPendingAction = useCallback(() => setPendingAction(null), []);
@@ -343,8 +269,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      user, profile, authLoading, pendingAction, pendingUsername, clearPendingAction,
-      signUpWithGoogle, completeSignUp, cancelSignUp, signOut,
+      user, profile, authLoading, pendingAction, clearPendingAction,
+      signInWithGoogle, signOut,
       preferences, setPreferences,
       onboardingDone, setOnboardingDone,
       mealPlan, addToMealPlan, removeFromMealPlan, clearMealPlan, updateServings,

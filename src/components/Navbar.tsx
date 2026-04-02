@@ -5,12 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import LoginModal from "@/components/LoginModal";
-import UsernameModal from "@/components/UsernameModal";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { mealPlan, profile, authLoading, pendingUsername, signOut } = useApp();
-  const showAuthSkeleton = authLoading || pendingUsername;
+  const { mealPlan, profile, authLoading, signOut } = useApp();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -56,7 +54,7 @@ export default function Navbar() {
             </Link>
 
             {/* Auth area */}
-            {showAuthSkeleton ? (
+            {authLoading ? (
               <div className="w-16 h-7 rounded-xl bg-gray-200 animate-pulse" />
             ) : profile ? (
               <div ref={dropdownRef} className="relative">
@@ -64,7 +62,7 @@ export default function Navbar() {
                   onClick={() => setDropdownOpen((v) => !v)}
                   className="flex items-center gap-1.5 text-sm font-semibold text-navy hover:text-navy/70 transition-colors"
                 >
-                  {profile.username}
+                  {profile.displayName}
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`}>
                     <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -93,7 +91,6 @@ export default function Navbar() {
       </nav>
 
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
-      {pendingUsername && <UsernameModal />}
     </>
   );
 }

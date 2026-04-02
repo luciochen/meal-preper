@@ -8,12 +8,12 @@ interface Props {
 }
 
 export default function LoginModal({ onClose }: Props) {
-  const { signUpWithGoogle } = useApp();
+  const { signInWithGoogle } = useApp();
   const [loading, setLoading] = useState(false);
 
   const handleGoogle = async () => {
     setLoading(true);
-    await signUpWithGoogle();
+    await signInWithGoogle();
   };
 
   return (
