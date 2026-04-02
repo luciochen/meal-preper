@@ -166,6 +166,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: { user: import("@supabase/supabase-js").User } | null) => {
+      console.log("[Auth] event:", event, "session:", session);
       if (event === "INITIAL_SESSION") {
         if (session?.user) {
           await handleSignedIn(session.user);
