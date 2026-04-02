@@ -9,8 +9,7 @@ import UsernameModal from "@/components/UsernameModal";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { mealPlan, profile, authLoading, pendingUsername, signOut } = useApp();
-  const showAuthSkeleton = authLoading || pendingUsername;
+  const { mealPlan, profile, pendingUsername, signOut } = useApp();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -56,9 +55,7 @@ export default function Navbar() {
             </Link>
 
             {/* Auth area */}
-            {showAuthSkeleton ? (
-              <div className="w-16 h-7 rounded-xl bg-gray-200 animate-pulse" />
-            ) : profile ? (
+            {profile && (
               <div ref={dropdownRef} className="relative">
                 <button
                   onClick={() => setDropdownOpen((v) => !v)}
@@ -80,13 +77,6 @@ export default function Navbar() {
                   </div>
                 )}
               </div>
-            ) : (
-              <button
-                onClick={() => setShowLoginModal(true)}
-                className="bg-navy text-white text-sm font-semibold px-3.5 py-1.5 rounded-xl hover:bg-navy/90 transition-colors"
-              >
-                Log in
-              </button>
             )}
           </div>
         </div>
