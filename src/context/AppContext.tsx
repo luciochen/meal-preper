@@ -120,12 +120,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadFromSupabase = useCallback(async (userId: string) => {
     const supabase = supabaseRef.current;
-    const [prefs, plan] = await Promise.all([
-      dbLoadPrefs(supabase, userId),
-      dbLoadPlan(supabase, userId),
-    ]);
-    if (prefs) setPreferencesState(prefs);
-    setMealPlan(plan);
+    try {
+      const [prefs, plan] = await Promise.all([
+        dbLoadPrefs(supabase, userId),
+        dbLoadPlan(supabase, userId),
+      ]);
+      if (prefs) setPreferencesState(prefs);
+      setMealPlan(plan);
+    } catch {
+      // Silently ignore — SIGNED_IN will retry with a fresh token
+    }
   }, []);
 
   useEffect(() => {
@@ -140,13 +144,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser(signedInUser);
       setProfile({ displayName });
 
-      // Refresh the token before any DB calls — INITIAL_SESSION can fire with
-      // a stale JWT (e.g. right after OAuth redirect when old cookies linger),
-      // causing 401s on all subsequent REST requests.
-      const { data: { session: fresh } } = await supabase.auth.refreshSession();
-      if (fresh) {
-        await loadFromSupabase(fresh.user.id);
-      }
+      // Load data best-effort — may get 401 on INITIAL_SESSION right after
+      // OAuth redirect (stale in-memory token). That's fine: SIGNED_IN fires
+      // next with a confirmed fresh token and retries.
+      // NOTE: do NOT call refreshSession() here — if GoTrue's in-memory token
+      // is stale it fires SIGNED_OUT, which resets user/profile back to null.
+      await loadFromSupabase(signedInUser.id).catch(() => {});
 
       const action = localStorage.getItem("tangie_pending_action");
       if (action) { localStorage.removeItem("tangie_pending_action"); setPendingAction(action); }
