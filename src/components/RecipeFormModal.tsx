@@ -66,16 +66,18 @@ function recipeToForm(recipe: Recipe): FormState {
   };
 }
 
-function scrapedToForm(scraped: ScrapedRecipe): FormState {
+function scrapedToForm(scraped: ScrapedRecipe & { _parsed_ingredients?: { quantity: string; unit: string; name: string }[] }): FormState {
   const totalTime = (scraped.prep_time ?? 0) + (scraped.cook_time ?? 0);
   return {
     title: scraped.title || "",
     description: scraped.description || "",
-    cuisine: "",
-    dietTags: [],
+    cuisine: scraped.cuisine || "",
+    dietTags: scraped.diet_tags || [],
     readyInMinutes: totalTime > 0 ? String(totalTime) : "",
     servings: scraped.servings ? String(parseInt(scraped.servings) || scraped.servings) : "",
-    ingredients: scraped.ingredients.map(parseIngredientString),
+    ingredients: scraped._parsed_ingredients?.length
+      ? scraped._parsed_ingredients
+      : scraped.ingredients.map(parseIngredientString),
     instructions: scraped.instructions.map((text) => ({ text })),
   };
 }
