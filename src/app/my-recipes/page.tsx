@@ -78,10 +78,20 @@ export default function MyRecipesPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 pb-16 pt-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-navy">My recipes</h1>
-        {!loading && recipes.length > 0 && (
-          <p className="text-sm text-gray-400 mt-1">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""}</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-extrabold text-navy">My recipes</h1>
+          {!loading && recipes.length > 0 && (
+            <p className="text-sm text-gray-400 mt-1">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""}</p>
+          )}
+        </div>
+        {!loading && (
+          <button
+            onClick={handleAddRecipe}
+            className="bg-navy text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-navy/90 transition-colors"
+          >
+            Add recipe
+          </button>
         )}
       </div>
 
