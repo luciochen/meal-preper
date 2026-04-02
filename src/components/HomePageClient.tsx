@@ -4,15 +4,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import RecipeCard from "@/components/RecipeCard";
 import RecipeModal from "@/components/RecipeModal";
-import AddRecipeModal from "@/components/AddRecipeModal";
-import RecipeFormModal from "@/components/RecipeFormModal";
-import ImportWebsiteModal from "@/components/ImportWebsiteModal";
-import AuthModal from "@/components/AuthModal";
 import SearchInput from "@/components/ui/SearchInput";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import { useApp } from "@/context/AppContext";
 import { Recipe } from "@/lib/mockData";
-import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 import { trackViewRecipeList, trackSearchNoResults, trackFilterApplied } from "@/lib/analytics";
 import { adjustScore, rankRecipes } from "@/lib/recipeScores";
 
@@ -71,32 +66,11 @@ function toggle(id: string, list: string[]): string[] {
   return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 }
 
-type AddStep = "idle" | "choose" | "scratch" | "website" | "confirm-import";
 
 export default function HomePageClient() {
-  const { preferences, setPreferences, user, pendingAction, clearPendingAction } = useApp();
-  const [addStep, setAddStep] = useState<AddStep>("idle");
-  const [scrapedData, setScrapedData] = useState<ScrapedRecipe | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { preferences, setPreferences } = useApp();
 
-  // Resume "add recipe" action after sign-in
-  useEffect(() => {
-    if (pendingAction === "add_recipe" && user) {
-      clearPendingAction();
-      setAddStep("choose");
-    }
-  }, [pendingAction, user, clearPendingAction]);
-
-  const handleAddRecipe = () => {
-    if (!user) {
-      localStorage.setItem("tangie_pending_action", "add_recipe");
-      setShowAuthModal(true);
-    } else {
-      setAddStep("choose");
-    }
-  };
-
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filters, setFilters] = useState<Filters>(() => {
@@ -282,16 +256,6 @@ const impressedIds = useRef<Set<string>>(new Set());
 
   return (
     <div>
-      {/* Add recipe CTA — below hero */}
-      <div className="mb-8">
-        <button
-          onClick={handleAddRecipe}
-          className="border border-gray-200 text-navy font-semibold px-5 py-2.5 rounded-2xl hover:border-gray-300 transition-colors text-sm flex items-center gap-2"
-        >
-          <span className="text-base leading-none">+</span> Add recipe
-        </button>
-      </div>
-
       {/* Recipes section */}
       <section className="pt-0">
         {/* Section header */}
@@ -437,29 +401,6 @@ const impressedIds = useRef<Set<string>>(new Set());
         />
       )}
 
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
-
-      {addStep === "choose" && (
-        <AddRecipeModal
-          onClose={() => setAddStep("idle")}
-          onSelect={(method) => setAddStep(method === "website" ? "website" : "scratch")}
-        />
-      )}
-      {addStep === "website" && (
-        <ImportWebsiteModal
-          onClose={() => setAddStep("choose")}
-          onImported={(data) => { setScrapedData(data); setAddStep("confirm-import"); }}
-        />
-      )}
-      {(addStep === "scratch" || addStep === "confirm-import") && (
-        <RecipeFormModal
-          mode="create"
-          sourceType={addStep === "confirm-import" ? "website" : "scratch"}
-          sourceUrl={addStep === "confirm-import" ? scrapedData?.sourceUrl : undefined}
-          scrapedData={addStep === "confirm-import" ? scrapedData ?? undefined : undefined}
-          onClose={() => { setAddStep("idle"); setScrapedData(null); }}
-        />
-      )}
     </div>
   );
 }

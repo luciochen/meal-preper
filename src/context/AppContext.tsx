@@ -91,7 +91,7 @@ async function dbSavePrefs(supabase: ReturnType<typeof createClient>, userId: st
 async function dbLoadPlan(supabase: ReturnType<typeof createClient>, userId: string): Promise<MealPlanItem[]> {
   const { data } = await supabase.from("meal_plan_items").select("*").eq("user_id", userId).order("added_at");
   if (!data) return [];
-  return data.map((row) => ({ recipe: row.recipe_snapshot as Recipe, servings: row.servings }));
+  return data.map((row: Record<string, unknown>) => ({ recipe: row.recipe_snapshot as Recipe, servings: row.servings as number }));
 }
 
 async function dbUpsertPlanItem(supabase: ReturnType<typeof createClient>, userId: string, item: MealPlanItem) {
@@ -168,7 +168,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPendingUsername(true);
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: { user: import("@supabase/supabase-js").User } | null) => {
       if (event === "INITIAL_SESSION") {
         if (session?.user) {
           await handleSignedIn(session.user);
