@@ -113,7 +113,7 @@ export default function MealPlanPage() {
 
   if (mealPlan.length === 0) {
     return (
-      <div className="max-w-6xl mx-auto px-4 pt-10 pb-16 text-center">
+      <div className="max-w-[1152px] mx-auto px-6 pt-10 pb-16 text-center">
         <p className="text-5xl mb-4">🥡</p>
         <h2 className="text-2xl font-extrabold text-navy mb-2">Your meal plan is empty</h2>
         <p className="text-gray-400 text-sm mb-6">Browse recipes and tap &quot;+&quot; to build your weekly prep list.</p>
@@ -126,7 +126,7 @@ export default function MealPlanPage() {
 
   return (
     <>
-    <div className="max-w-6xl mx-auto px-4 pb-16">
+    <div className="max-w-[1152px] mx-auto px-6 pb-16">
 
       {/* Header */}
       <div className="flex items-center justify-between py-6">

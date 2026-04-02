@@ -58,7 +58,7 @@ export default function RecipePage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 pt-6 animate-pulse space-y-4">
+      <div className="max-w-[1152px] mx-auto px-6 pt-6 animate-pulse space-y-4">
         <div className="aspect-video bg-gray-200 rounded-2xl" />
         <div className="h-6 bg-gray-200 rounded w-2/3" />
         <div className="h-4 bg-gray-200 rounded w-1/3" />
@@ -84,16 +84,16 @@ export default function RecipePage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto pb-16">
+    <div className="max-w-[1152px] mx-auto pb-16">
       {/* Back button */}
-      <div className="px-4 pt-4">
+      <div className="px-6 pt-4">
         <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-navy flex items-center gap-1 mb-3">
           ← Back
         </button>
       </div>
 
       {/* Hero image */}
-      <div className="relative mx-4 aspect-video rounded-2xl overflow-hidden bg-gray-100">
+      <div className="relative mx-6 aspect-video rounded-2xl overflow-hidden bg-gray-100">
         {recipe.image ? (
           <Image
             src={recipe.image}
@@ -125,7 +125,7 @@ export default function RecipePage() {
       </div>
 
       {/* Two-column body */}
-      <div className="px-4 mt-5 flex flex-col lg:flex-row gap-5 items-start">
+      <div className="px-6 mt-5 flex flex-col lg:flex-row gap-5 items-start">
 
         {/* LEFT COLUMN — 360px */}
         <div className="w-full lg:w-[360px] lg:flex-shrink-0 space-y-4">
@@ -242,7 +242,7 @@ export default function RecipePage() {
 
       {/* Similar recipes — full width below */}
       {similar.length > 0 && (
-        <div className="px-4 mt-8">
+        <div className="px-6 mt-8">
           <h2 className="text-lg font-extrabold text-navy mb-3">You might also like</h2>
           <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
             {similar.map((r) => (

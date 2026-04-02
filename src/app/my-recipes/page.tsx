@@ -10,18 +10,20 @@ import RecipeModal from "@/components/RecipeModal";
 import AddRecipeModal from "@/components/AddRecipeModal";
 import RecipeFormModal from "@/components/RecipeFormModal";
 import ImportWebsiteModal from "@/components/ImportWebsiteModal";
+import LoginModal from "@/components/LoginModal";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 
 type Step = "idle" | "choose" | "scratch" | "website" | "confirm-import";
 
 export default function MyRecipesPage() {
-  const { user, profile, authLoading, pendingAction, clearPendingAction } = useApp();
+  const { user, authLoading, pendingAction, clearPendingAction } = useApp();
 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [step, setStep] = useState<Step>("idle");
   const [scrapedData, setScrapedData] = useState<ScrapedRecipe | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
 
   // Resume "add recipe" action after sign-in
   useEffect(() => {
@@ -47,12 +49,11 @@ export default function MyRecipesPage() {
   useEffect(() => { fetchRecipes(); }, [fetchRecipes]);
 
   const handleAddRecipe = () => {
+    if (!user) { setShowLogin(true); return; }
     setStep("choose");
   };
 
-  const handleRecipeSaved = (saved: UserRecipe) => {
-    fetchRecipes();
-  };
+  const handleRecipeSaved = () => { fetchRecipes(); };
 
   const handleRecipeDeleted = () => {
     setSelectedRecipe(null);
@@ -63,20 +64,27 @@ export default function MyRecipesPage() {
 
   if (!authLoading && !user) {
     return (
-      <div className="max-w-5xl mx-auto px-4 pb-16 pt-8">
+      <div className="max-w-[1152px] mx-auto px-6 pb-16 pt-8">
         <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
           <p className="text-5xl mb-5">📖</p>
           <h1 className="text-2xl font-extrabold text-navy mb-2">Your recipes, all in one place</h1>
-          <p className="text-gray-500 text-sm max-w-sm">
-            Save and manage your personal recipe collection.
+          <p className="text-gray-500 text-sm max-w-sm mb-6">
+            Sign in to save and manage your personal recipe collection.
           </p>
+          <button
+            onClick={() => setShowLogin(true)}
+            className="bg-navy text-white font-semibold px-5 py-3 rounded-xl hover:bg-navy/90 transition-colors"
+          >
+            Log in
+          </button>
         </div>
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 pb-16 pt-8">
+    <div className="max-w-[1152px] mx-auto px-6 pb-16 pt-8">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
@@ -109,7 +117,6 @@ export default function MyRecipesPage() {
           ))}
         </div>
       ) : recipes.length === 0 ? (
-        /* Empty state */
         <div className="text-center py-20">
           <p className="text-5xl mb-4">🍳</p>
           <p className="text-navy font-bold text-lg mb-1">No recipes yet</p>
@@ -147,10 +154,7 @@ export default function MyRecipesPage() {
             if (r) setSelectedRecipe(r);
           }}
           onRecipeDeleted={handleRecipeDeleted}
-          onRecipeSaved={(saved) => {
-            fetchRecipes();
-            setSelectedRecipe(null);
-          }}
+          onRecipeSaved={() => { fetchRecipes(); setSelectedRecipe(null); }}
         />
       )}
 
@@ -166,6 +170,7 @@ export default function MyRecipesPage() {
         <ImportWebsiteModal
           onClose={() => setStep("choose")}
           onImported={(data) => { setScrapedData(data); setStep("confirm-import"); }}
+          onAddManually={() => setStep("scratch")}
         />
       )}
 
@@ -173,12 +178,14 @@ export default function MyRecipesPage() {
         <RecipeFormModal
           mode="create"
           sourceType={step === "confirm-import" ? "website" : "scratch"}
-          sourceUrl={step === "confirm-import" ? scrapedData?.sourceUrl : undefined}
+          sourceUrl={step === "confirm-import" ? scrapedData?.source_url : undefined}
           scrapedData={step === "confirm-import" ? scrapedData ?? undefined : undefined}
           onClose={() => { setStep("idle"); setScrapedData(null); }}
           onSaved={handleRecipeSaved}
         />
       )}
+
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </div>
   );
 }

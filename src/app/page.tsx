@@ -2,7 +2,7 @@ import HomePageClientWrapper from "@/components/HomePageClientWrapper";
 
 export default function HomePage() {
   return (
-    <div className="max-w-6xl mx-auto px-4 pb-16">
+    <div className="max-w-[1152px] mx-auto px-6 pb-16">
       {/* Hero — rendered server-side so search engines index it */}
       <div className="pt-8 pb-10">
         <h1 className="text-[2.5rem] font-extrabold text-navy leading-[1.15] max-w-[800px]">
