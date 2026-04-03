@@ -269,6 +269,8 @@ export default function RecipeFormModal({
         userMsg = "Configuration error — please contact support.";
       } else if (msg.includes("auth") || msg.includes("JWT") || msg.includes("401") || code === "PGRST301") {
         userMsg = "Session expired — please sign out and sign in again.";
+      } else if (msg.includes("does not exist") || msg.includes("relation") || code === "42P01") {
+        userMsg = "Database not ready — please try again in a moment.";
       }
       showToast(userMsg);
       setError(userMsg);
