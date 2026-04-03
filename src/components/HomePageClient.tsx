@@ -6,10 +6,17 @@ import RecipeCard from "@/components/RecipeCard";
 import RecipeModal from "@/components/RecipeModal";
 import SearchInput from "@/components/ui/SearchInput";
 import FilterDropdown from "@/components/ui/FilterDropdown";
+import AddRecipeModal from "@/components/AddRecipeModal";
+import RecipeFormModal from "@/components/RecipeFormModal";
+import ImportWebsiteModal from "@/components/ImportWebsiteModal";
+import LoginModal from "@/components/LoginModal";
 import { useApp } from "@/context/AppContext";
 import { Recipe } from "@/lib/mockData";
+import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 import { trackViewRecipeList, trackSearchNoResults, trackFilterApplied } from "@/lib/analytics";
 import { adjustScore, rankRecipes } from "@/lib/recipeScores";
+
+type AddStep = "idle" | "choose" | "scratch" | "website" | "confirm-import";
 
 const FILTER_CATEGORIES = [
   {
@@ -68,7 +75,22 @@ function toggle(id: string, list: string[]): string[] {
 
 
 export default function HomePageClient() {
-  const { preferences, setPreferences } = useApp();
+  const { preferences, setPreferences, user, pendingAction, clearPendingAction } = useApp();
+  const [addStep, setAddStep] = useState<AddStep>("idle");
+  const [scrapedData, setScrapedData] = useState<ScrapedRecipe | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
+
+  useEffect(() => {
+    if (pendingAction === "add_recipe" && user) {
+      clearPendingAction();
+      setAddStep("choose");
+    }
+  }, [pendingAction, user, clearPendingAction]);
+
+  const handleAddRecipe = () => {
+    if (!user) { setShowLogin(true); return; }
+    setAddStep("choose");
+  };
 
 const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -261,7 +283,12 @@ const impressedIds = useRef<Set<string>>(new Set());
         {/* Section header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-navy">For you</h2>
-          {!loading && <span className="text-sm text-gray-400">{recipes.length} recipes</span>}
+          <button
+            onClick={handleAddRecipe}
+            className="border border-gray-200 text-navy font-semibold px-4 py-2 rounded-2xl hover:border-gray-300 transition-colors text-sm flex items-center gap-1.5"
+          >
+            <span className="text-base leading-none">+</span> Add recipe
+          </button>
         </div>
 
         {/* Search + Filter bar */}
@@ -400,6 +427,31 @@ const impressedIds = useRef<Set<string>>(new Set());
           onOpenRecipe={handleOpenRecipe}
         />
       )}
+
+      {addStep === "choose" && (
+        <AddRecipeModal
+          onClose={() => setAddStep("idle")}
+          onSelect={(method) => setAddStep(method === "website" ? "website" : "scratch")}
+        />
+      )}
+      {addStep === "website" && (
+        <ImportWebsiteModal
+          onClose={() => setAddStep("choose")}
+          onImported={(data) => { setScrapedData(data); setAddStep("confirm-import"); }}
+          onAddManually={() => setAddStep("scratch")}
+        />
+      )}
+      {(addStep === "scratch" || addStep === "confirm-import") && (
+        <RecipeFormModal
+          mode="create"
+          sourceType={addStep === "confirm-import" ? "website" : "scratch"}
+          sourceUrl={addStep === "confirm-import" ? scrapedData?.source_url : undefined}
+          scrapedData={addStep === "confirm-import" ? scrapedData ?? undefined : undefined}
+          onClose={() => { setAddStep("idle"); setScrapedData(null); }}
+          onSaved={() => setAddStep("idle")}
+        />
+      )}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
 
     </div>
   );
