@@ -191,7 +191,8 @@ export default function RecipeFormModal({
       const sb = createClient();
 
       // Verify the session is active before attempting a write
-      const { data: { session } } = await sb.auth.getSession();
+      const { data: { session }, error: sessionErr } = await sb.auth.getSession();
+      console.log("[RecipeFormModal] session:", session ? `uid=${session.user.id} exp=${session.expires_at}` : "null", "err:", sessionErr);
       if (!session) throw new Error("auth: no active session");
 
       const ingredients = form.ingredients.filter((i) => i.name.trim());
@@ -238,6 +239,7 @@ export default function RecipeFormModal({
             .single(),
           timeout,
         ]);
+        console.log("[RecipeFormModal] insert result — data:", data, "error:", insertErr);
         if (insertErr) throw insertErr;
         savedRow = data;
         recipeId = data.id as string;
@@ -264,14 +266,10 @@ export default function RecipeFormModal({
       console.error("[RecipeFormModal] save error:", err);
       const msg = (err as { message?: string; code?: string })?.message ?? "";
       const code = (err as { code?: string })?.code ?? "";
-      let userMsg = "Failed to save recipe. Please try again.";
-      if (msg.includes("secret API key") || msg.includes("service_role")) {
-        userMsg = "Configuration error — please contact support.";
-      } else if (msg.includes("auth") || msg.includes("JWT") || msg.includes("401") || code === "PGRST301") {
-        userMsg = "Session expired — please sign out and sign in again.";
-      } else if (msg.includes("does not exist") || msg.includes("relation") || code === "42P01") {
-        userMsg = "Database not ready — please try again in a moment.";
-      }
+      // Show actual error in dev for debugging
+      const detail = `${code ? `[${code}] ` : ""}${msg || String(err)}`;
+      console.error("[RecipeFormModal] detail:", detail);
+      let userMsg = `Save failed: ${detail}`.slice(0, 120);
       showToast(userMsg);
       setError(userMsg);
     } finally {
