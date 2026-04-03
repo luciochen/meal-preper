@@ -190,11 +190,6 @@ export default function RecipeFormModal({
     try {
       const sb = createClient();
 
-      // Verify the session is active before attempting a write
-      const { data: { session }, error: sessionErr } = await sb.auth.getSession();
-      console.log("[RecipeFormModal] session:", session ? `uid=${session.user.id} exp=${session.expires_at}` : "null", "err:", sessionErr);
-      if (!session) throw new Error("auth: no active session");
-
       const ingredients = form.ingredients.filter((i) => i.name.trim());
       const instructions_json: UserRecipeInstruction[] = form.instructions
         .filter((s) => s.text.trim())
@@ -217,7 +212,7 @@ export default function RecipeFormModal({
       };
 
       const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Request timed out")), 10000)
+        setTimeout(() => reject(new Error("Request timed out after 8s")), 8000)
       );
 
       let recipeId: string;
