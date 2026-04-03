@@ -19,7 +19,7 @@ export default function MyRecipesPage() {
   const { user, authLoading, pendingAction, clearPendingAction } = useApp();
 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [step, setStep] = useState<Step>("idle");
   const [scrapedData, setScrapedData] = useState<ScrapedRecipe | null>(null);
