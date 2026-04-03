@@ -144,12 +144,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser(signedInUser);
       setProfile({ displayName });
 
-      // Load data best-effort — may get 401 on INITIAL_SESSION right after
-      // OAuth redirect (stale in-memory token). That's fine: SIGNED_IN fires
-      // next with a confirmed fresh token and retries.
-      // NOTE: do NOT call refreshSession() here — if GoTrue's in-memory token
-      // is stale it fires SIGNED_OUT, which resets user/profile back to null.
-      await loadFromSupabase(signedInUser.id).catch(() => {});
+      // Fire-and-forget — do NOT await. authLoading must not depend on DB calls
+      // that can hang due to token refresh. User/profile are already set above;
+      // data will arrive whenever the load completes.
+      loadFromSupabase(signedInUser.id).catch(() => {});
 
       const action = localStorage.getItem("tangie_pending_action");
       if (action) { localStorage.removeItem("tangie_pending_action"); setPendingAction(action); }

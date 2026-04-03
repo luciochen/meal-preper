@@ -38,11 +38,16 @@ export default function MyRecipesPage() {
     setLoading(true);
     try {
       const sb = createClient();
-      const { data } = await sb
-        .from("user_recipes")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("fetch timeout")), 8000)
+      );
+      const { data } = await Promise.race([
+        sb.from("user_recipes")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        timeout,
+      ]);
       setRecipes((data as UserRecipe[] || []).map(userRecipeToRecipe));
     } catch {
       setRecipes([]);
