@@ -187,14 +187,12 @@ export default function RecipeFormModal({
     setSaving(true);
     setError("");
 
-    // Safety net: always unblock the button after 15 s even if something hangs
-    const saveTimeout = setTimeout(() => {
-      setSaving(false);
-      showToast("Something went wrong. Please try again.");
-    }, 15000);
-
     try {
       const sb = createClient();
+
+      // Verify the session is active before attempting a write
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error("auth: no active session");
 
       const ingredients = form.ingredients.filter((i) => i.name.trim());
       const instructions_json: UserRecipeInstruction[] = form.instructions
@@ -217,25 +215,29 @@ export default function RecipeFormModal({
         updated_at: new Date().toISOString(),
       };
 
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out")), 10000)
+      );
+
       let recipeId: string;
       let savedRow: Record<string, unknown>;
 
       if (mode === "edit" && editingRecipe) {
         recipeId = String(editingRecipe.id);
-        const { data, error: updateErr } = await sb
-          .from("user_recipes")
-          .update(baseData)
-          .eq("id", recipeId)
-          .select()
-          .single();
+        const { data, error: updateErr } = await Promise.race([
+          sb.from("user_recipes").update(baseData).eq("id", recipeId).select().single(),
+          timeout,
+        ]);
         if (updateErr) throw updateErr;
         savedRow = data;
       } else {
-        const { data, error: insertErr } = await sb
-          .from("user_recipes")
-          .insert({ ...baseData, created_at: new Date().toISOString() })
-          .select()
-          .single();
+        const { data, error: insertErr } = await Promise.race([
+          sb.from("user_recipes")
+            .insert({ ...baseData, created_at: new Date().toISOString() })
+            .select()
+            .single(),
+          timeout,
+        ]);
         if (insertErr) throw insertErr;
         savedRow = data;
         recipeId = data.id as string;
@@ -255,12 +257,10 @@ export default function RecipeFormModal({
         }
       }
 
-      clearTimeout(saveTimeout);
       showToast(mode === "edit" ? "Recipe updated!" : "Recipe added!");
       onSaved?.(savedRow as unknown as UserRecipe);
       setTimeout(onClose, 800);
     } catch (err) {
-      clearTimeout(saveTimeout);
       console.error("[RecipeFormModal] save error:", err);
       const msg = (err as { message?: string; code?: string })?.message ?? "";
       const code = (err as { code?: string })?.code ?? "";
