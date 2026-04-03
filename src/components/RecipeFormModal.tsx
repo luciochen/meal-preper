@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -111,7 +111,6 @@ export default function RecipeFormModal({
     return emptyForm();
   });
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>(
     mode === "edit" ? (editingRecipe?.image || "") : (scrapedData?.image_url || "")
   );
@@ -124,6 +123,11 @@ export default function RecipeFormModal({
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   const showToast = (msg: string) => {
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -135,12 +139,27 @@ export default function RecipeFormModal({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX = 1000;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+        else { width = Math.round(width * MAX / height); height = MAX; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      // Store as base64 data URL — no storage bucket needed
+      setImagePreview(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.src = objectUrl;
   };
 
   const clearImage = () => {
-    setImageFile(null);
     setImagePreview("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -240,20 +259,6 @@ export default function RecipeFormModal({
         recipeId = data.id as string;
       }
 
-      // Upload image file if selected
-      if (imageFile) {
-        const ext = imageFile.name.split(".").pop() ?? "jpg";
-        const path = `${user.id}/${recipeId}.${ext}`;
-        const { error: uploadErr } = await sb.storage
-          .from("recipe-images")
-          .upload(path, imageFile, { upsert: true });
-        if (!uploadErr) {
-          const { data: { publicUrl } } = sb.storage.from("recipe-images").getPublicUrl(path);
-          await sb.from("user_recipes").update({ image_url: publicUrl }).eq("id", recipeId);
-          savedRow.image_url = publicUrl;
-        }
-      }
-
       showToast(mode === "edit" ? "Recipe updated!" : "Recipe added!");
       onSaved?.(savedRow as unknown as UserRecipe);
       setTimeout(onClose, 800);
@@ -299,7 +304,7 @@ export default function RecipeFormModal({
       </div>
 
       <div
-        className="relative bg-white w-full sm:max-w-2xl max-h-[96dvh] sm:max-h-[92vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col"
+        className="relative bg-white w-full sm:max-w-[800px] max-h-[96dvh] sm:max-h-[92vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -504,7 +509,7 @@ export default function RecipeFormModal({
               <button
                 type="button"
                 onClick={addIngredient}
-                className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-navy hover:text-navy/70 transition-colors"
+                className="mt-3 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border-2 border-gray-200 text-gray-600 hover:border-gray-300 transition-colors"
               >
                 <span className="text-base leading-none">+</span> Add ingredient
               </button>
@@ -521,10 +526,17 @@ export default function RecipeFormModal({
                     </span>
                     <textarea
                       value={step.text}
-                      onChange={(e) => updateInstruction(i, e.target.value)}
+                      onChange={(e) => {
+                        updateInstruction(i, e.target.value);
+                        e.target.style.height = "auto";
+                        e.target.style.height = e.target.scrollHeight + "px";
+                      }}
+                      ref={(el) => {
+                        if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+                      }}
                       placeholder={`Step ${i + 1}…`}
-                      rows={2}
-                      className={inputCls + " flex-1 resize-none"}
+                      rows={1}
+                      className={inputCls + " flex-1 resize-none overflow-hidden"}
                     />
                     <button
                       type="button"
@@ -542,7 +554,7 @@ export default function RecipeFormModal({
               <button
                 type="button"
                 onClick={addInstruction}
-                className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-navy hover:text-navy/70 transition-colors"
+                className="mt-3 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border-2 border-gray-200 text-gray-600 hover:border-gray-300 transition-colors"
               >
                 <span className="text-base leading-none">+</span> Add step
               </button>

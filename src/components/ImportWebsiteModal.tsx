@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -16,6 +16,11 @@ interface Props {
 }
 
 export default function ImportWebsiteModal({ onClose, onImported, onAddManually }: Props) {
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

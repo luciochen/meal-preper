@@ -139,8 +139,29 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
 
   const steps = recipe?.analyzedInstructions?.[0]?.steps || [];
 
+  // Only one modal open at a time — swap to edit modal when editing
+  if (isEditing && recipe?.is_user_recipe) {
+    return (
+      <RecipeFormModal
+        mode="edit"
+        editingRecipe={recipe}
+        sourceType={(recipe.source_type as "scratch" | "website" | "instagram") ?? "scratch"}
+        sourceUrl={recipe.source_url}
+        onClose={() => setIsEditing(false)}
+        onSaved={(saved) => {
+          setIsEditing(false);
+          onRecipeSaved?.(saved);
+        }}
+        onDeleted={() => {
+          setIsEditing(false);
+          onRecipeDeleted?.();
+          onClose();
+        }}
+      />
+    );
+  }
+
   return (
-    <>
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
@@ -270,19 +291,53 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                   />
                 )}
 
-                {/* Ingredients — user recipe flat list */}
+                {/* Ingredients — user recipe grouped */}
                 {recipe.is_user_recipe && (recipe.ingredients_json?.length ?? 0) > 0 && (
                   <section>
                     <h2 className="text-base font-bold text-navy mb-3">Ingredients</h2>
-                    <div className="divide-y divide-gray-100">
-                      {recipe.ingredients_json!.map((ing, i) => (
-                        <div key={i} className="py-2.5">
-                          <p className="text-sm text-gray-700">
-                            {[ing.quantity, ing.unit, ing.name].filter(Boolean).join(" ")}
-                          </p>
+                    {(() => {
+                      const grouped = SECTION_ORDER
+                        .map((label) => ({
+                          label,
+                          items: recipe.ingredients_json!.filter(
+                            (ing) => classifyIngredient(ing.name) === label
+                          ),
+                        }))
+                        .filter((g) => g.items.length > 0);
+
+                      return (
+                        <div className="space-y-4">
+                          {grouped.map((group) => {
+                            const pairs: typeof group.items[] = [];
+                            for (let i = 0; i < group.items.length; i += 2) {
+                              pairs.push(group.items.slice(i, i + 2));
+                            }
+                            return (
+                              <div key={group.label}>
+                                <div className="flex items-center gap-1.5 mb-2">
+                                  <span className="text-base">{CATEGORY_ICONS[group.label] ?? "📦"}</span>
+                                  <span className="text-sm font-bold text-navy">{group.label}</span>
+                                </div>
+                                <div className="divide-y divide-gray-100">
+                                  {pairs.map((pair, pi) => (
+                                    <div key={pi} className="grid grid-cols-2 gap-4 py-2.5">
+                                      {pair.map((ing, ii) => (
+                                        <div key={ii}>
+                                          <p className="text-sm font-medium text-navy">{cap(ing.name)}</p>
+                                          <p className="text-xs text-gray-400 mt-0.5">
+                                            {[ing.quantity, ing.unit].filter(Boolean).join(" ") || "—"}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })()}
                   </section>
                 )}
 
@@ -480,25 +535,5 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
       </div>
     </div>
 
-    {/* Edit modal — overlays the recipe modal */}
-    {isEditing && recipe?.is_user_recipe && (
-      <RecipeFormModal
-        mode="edit"
-        editingRecipe={recipe}
-        sourceType={(recipe.source_type as "scratch" | "website" | "instagram") ?? "scratch"}
-        sourceUrl={recipe.source_url}
-        onClose={() => setIsEditing(false)}
-        onSaved={(saved) => {
-          setIsEditing(false);
-          onRecipeSaved?.(saved);
-        }}
-        onDeleted={() => {
-          setIsEditing(false);
-          onRecipeDeleted?.();
-          onClose();
-        }}
-      />
-    )}
-    </>
   );
 }

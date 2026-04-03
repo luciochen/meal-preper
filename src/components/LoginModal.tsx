@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 
 interface Props {
@@ -10,6 +10,11 @@ interface Props {
 export default function LoginModal({ onClose }: Props) {
   const { signInWithGoogle } = useApp();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
 
   const handleGoogle = async () => {
     setLoading(true);

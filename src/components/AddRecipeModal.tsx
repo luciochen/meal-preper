@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 type Method = "scratch" | "website" | "instagram";
 
 interface Props {
@@ -45,6 +47,11 @@ const OPTIONS: { id: Method; label: string; desc: string; icon: React.ReactNode;
 ];
 
 export default function AddRecipeModal({ onClose, onSelect }: Props) {
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
