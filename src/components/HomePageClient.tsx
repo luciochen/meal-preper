@@ -278,17 +278,21 @@ const impressedIds = useRef<Set<string>>(new Set());
 
   return (
     <div>
+      {/* Add recipe CTA — below hero */}
+      <div className="mb-8">
+        <button
+          onClick={handleAddRecipe}
+          className="border border-gray-200 text-navy font-semibold px-5 py-2.5 rounded-2xl hover:border-gray-300 transition-colors text-sm flex items-center gap-2"
+        >
+          <span className="text-base leading-none">+</span> Add recipe
+        </button>
+      </div>
+
       {/* Recipes section */}
       <section className="pt-0">
         {/* Section header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-navy">For you</h2>
-          <button
-            onClick={handleAddRecipe}
-            className="border border-gray-200 text-navy font-semibold px-4 py-2 rounded-2xl hover:border-gray-300 transition-colors text-sm flex items-center gap-1.5"
-          >
-            <span className="text-base leading-none">+</span> Add recipe
-          </button>
         </div>
 
         {/* Search + Filter bar */}
