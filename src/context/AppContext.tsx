@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import type { User } from "@supabase/supabase-js";
 import { Recipe } from "@/lib/mockData";
 import { adjustScore } from "@/lib/recipeScores";
+import { trackUserRecipeAddedToMealPlan } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export interface MealPlanItem {
@@ -218,6 +219,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addToMealPlan = useCallback((recipe: Recipe, servings: number) => {
+    if (recipe.is_user_recipe) {
+      trackUserRecipeAddedToMealPlan(recipe.source_type ?? "manual");
+    }
     setMealPlan((prev) => {
       const exists = prev.find((i) => i.recipe.id === recipe.id);
       const next = exists

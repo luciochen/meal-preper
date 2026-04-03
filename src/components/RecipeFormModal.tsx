@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { trackRecipeImportCompleted } from "@/lib/analytics";
 import { useApp } from "@/context/AppContext";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -259,6 +260,14 @@ export default function RecipeFormModal({
         recipeId = data.id as string;
       }
 
+      if (mode === "create") {
+        trackRecipeImportCompleted({
+          method: sourceType,
+          had_image: !!imagePreview,
+          ingredient_count: ingredients.length,
+          ai_enriched: sourceType === "website" && !!scrapedData,
+        });
+      }
       showToast(mode === "edit" ? "Recipe updated!" : "Recipe added!");
       onSaved?.(savedRow as unknown as UserRecipe);
       setTimeout(onClose, 800);

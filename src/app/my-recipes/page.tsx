@@ -12,6 +12,10 @@ import RecipeFormModal from "@/components/RecipeFormModal";
 import ImportWebsiteModal from "@/components/ImportWebsiteModal";
 import LoginModal from "@/components/LoginModal";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
+import {
+  trackRecipeImportStarted,
+  trackRecipeImportAbandoned,
+} from "@/lib/analytics";
 
 type Step = "idle" | "choose" | "scratch" | "website" | "confirm-import";
 
@@ -60,6 +64,7 @@ export default function MyRecipesPage() {
 
   const handleAddRecipe = () => {
     if (!user) { setShowLogin(true); return; }
+    trackRecipeImportStarted("my-recipes");
     setStep("choose");
   };
 
@@ -171,14 +176,14 @@ export default function MyRecipesPage() {
       {/* Add recipe flow */}
       {step === "choose" && (
         <AddRecipeModal
-          onClose={() => setStep("idle")}
+          onClose={() => { trackRecipeImportAbandoned("choose"); setStep("idle"); }}
           onSelect={(method) => setStep(method === "website" ? "website" : "scratch")}
         />
       )}
 
       {step === "website" && (
         <ImportWebsiteModal
-          onClose={() => setStep("choose")}
+          onClose={() => { trackRecipeImportAbandoned("website"); setStep("choose"); }}
           onImported={(data) => { setScrapedData(data); setStep("confirm-import"); }}
           onAddManually={() => setStep("scratch")}
         />
@@ -190,7 +195,11 @@ export default function MyRecipesPage() {
           sourceType={step === "confirm-import" ? "website" : "scratch"}
           sourceUrl={step === "confirm-import" ? scrapedData?.source_url : undefined}
           scrapedData={step === "confirm-import" ? scrapedData ?? undefined : undefined}
-          onClose={() => { setStep("idle"); setScrapedData(null); }}
+          onClose={() => {
+            trackRecipeImportAbandoned(step === "confirm-import" ? "confirm_import" : "scratch");
+            setStep("idle");
+            setScrapedData(null);
+          }}
           onSaved={handleRecipeSaved}
         />
       )}

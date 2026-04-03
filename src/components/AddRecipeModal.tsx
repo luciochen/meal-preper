@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { trackRecipeImportMethodSelected } from "@/lib/analytics";
 
 type Method = "scratch" | "website" | "instagram";
 
@@ -77,7 +78,11 @@ export default function AddRecipeModal({ onClose, onSelect }: Props) {
             <button
               key={opt.id}
               disabled={opt.disabled}
-              onClick={() => !opt.disabled && onSelect(opt.id)}
+              onClick={() => {
+                if (opt.disabled) return;
+                trackRecipeImportMethodSelected(opt.id === "scratch" ? "manual" : opt.id);
+                onSelect(opt.id);
+              }}
               className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${
                 opt.disabled
                   ? "border-gray-100 bg-gray-50 cursor-not-allowed"

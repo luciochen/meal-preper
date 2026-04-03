@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
+import { trackRecipeUrlFetchResult } from "@/lib/analytics";
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_url: "Please enter a valid URL",
@@ -42,11 +43,14 @@ export default function ImportWebsiteModal({ onClose, onImported, onAddManually 
 
       if (!res.ok || data.error) {
         const code = data.error as string;
+        trackRecipeUrlFetchResult(false, code || "fetch_failed");
         setError(ERROR_MESSAGES[code] ?? ERROR_MESSAGES.fetch_failed);
       } else {
+        trackRecipeUrlFetchResult(true);
         onImported(data as ScrapedRecipe);
       }
     } catch {
+      trackRecipeUrlFetchResult(false, "network_error");
       setError(ERROR_MESSAGES.fetch_failed);
     } finally {
       setLoading(false);

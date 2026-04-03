@@ -66,6 +66,46 @@ export function trackFilterApplied(filterKey: string, filterId: string, activeFi
   });
 }
 
+// ─── Recipe import funnel ──────────────────────────────────────────────────
+
+/** Fired when the user clicks "Add recipe" to start the import flow */
+export function trackRecipeImportStarted(page: "my-recipes" | "homepage") {
+  track("recipe_import_started", { page });
+}
+
+/** Fired when the user selects an import method in the choose modal */
+export function trackRecipeImportMethodSelected(method: "website" | "manual" | "instagram") {
+  track("recipe_import_method_selected", { method });
+}
+
+/** Fired after URL scraping completes (success or failure) */
+export function trackRecipeUrlFetchResult(success: boolean, errorType?: string) {
+  track("recipe_url_fetch_result", {
+    success,
+    ...(errorType ? { error_type: errorType } : {}),
+  });
+}
+
+/** Fired when the user closes the import flow without saving */
+export function trackRecipeImportAbandoned(step: "choose" | "website" | "scratch" | "confirm_import") {
+  track("recipe_import_abandoned", { step });
+}
+
+/** Fired when a recipe is successfully saved through the import flow */
+export function trackRecipeImportCompleted(params: {
+  method: "scratch" | "website" | "instagram";
+  had_image: boolean;
+  ingredient_count: number;
+  ai_enriched: boolean;
+}) {
+  track("recipe_import_completed", params);
+}
+
+/** Fired when a user-created recipe is added to the meal plan */
+export function trackUserRecipeAddedToMealPlan(source_type: string) {
+  track("user_recipe_added_to_meal_plan", { source_type });
+}
+
 // ─── Scroll depth ──────────────────────────────────────────────────────────
 
 /** Fired at 50% and 100% scroll depth on a recipe detail */
