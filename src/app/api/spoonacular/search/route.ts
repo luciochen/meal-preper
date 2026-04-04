@@ -27,11 +27,11 @@ async function fetchCuisinePool(
     addRecipeInformation: "true",
     fillIngredients: "true",
     instructionsRequired: "true",
-    minSpoonacularScore: "70",
+    minSpoonacularScore: "80",
     maxReadyTime: "45",
     minAggregateLikes: "2",
     cuisine,
-    number: "100",
+    number: "50",
     offset: "0",
     ...extra,
   });
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       .filter((r) => {
         const ic = ((r.extendedIngredients as unknown[]) ?? []).length;
         const sc = ((r.analyzedInstructions as { steps: unknown[] }[])?.[0]?.steps ?? []).length;
-        return ic >= 3 && ic <= 15 && sc >= 2;
+        return ic >= 4 && ic <= 12 && sc >= 3;
       })
       .map((r) => ({
         ...r,

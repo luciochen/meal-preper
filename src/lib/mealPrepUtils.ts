@@ -80,7 +80,7 @@ export function computeMicrowaveScore(recipe: {
 
 const EXCLUDED_DISH_TYPES = new Set([
   "dessert", "beverage", "drink", "cocktail", "appetizer",
-  "fingerfood", "snack", "breakfast", "brunch",
+  "fingerfood", "snack", "breakfast", "brunch", "soup",
 ]);
 
 const EXCLUDE_TITLE_KEYWORDS = [
@@ -100,7 +100,7 @@ export function isMealPrepSuitable(recipe: { dishTypes?: string[]; title?: strin
 
   const types = recipe.dishTypes.map((d) => d.toLowerCase());
   if (types.some((t) => EXCLUDED_DISH_TYPES.has(t))) return false;
-  const mealPrepTypes = ["main course", "side dish", "soup", "lunch", "dinner"];
+  const mealPrepTypes = ["main course", "lunch", "dinner"];
   if (!types.some((t) => mealPrepTypes.some((m) => t.includes(m)))) return false;
   return true;
 }
