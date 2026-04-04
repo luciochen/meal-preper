@@ -439,13 +439,17 @@ const impressedIds = useRef<Set<string>>(new Set());
         )}
       </section>
 
-      {selectedRecipeId !== null && (
-        <RecipeModal
-          recipeId={selectedRecipeId}
-          onClose={() => setSelectedRecipeId(null)}
-          onOpenRecipe={handleOpenRecipe}
-        />
-      )}
+      {selectedRecipeId !== null && (() => {
+        const selectedRecipe = recipes.find((r) => String(r.id) === String(selectedRecipeId));
+        return (
+          <RecipeModal
+            recipeId={selectedRecipeId}
+            initialRecipe={selectedRecipe?.is_user_recipe ? selectedRecipe : undefined}
+            onClose={() => setSelectedRecipeId(null)}
+            onOpenRecipe={handleOpenRecipe}
+          />
+        );
+      })()}
 
       {addStep === "choose" && (
         <AddRecipeModal

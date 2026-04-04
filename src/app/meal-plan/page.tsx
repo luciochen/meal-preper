@@ -268,13 +268,17 @@ export default function MealPlanPage() {
       </div>
     </div>
 
-    {openRecipeId !== null && (
-      <RecipeModal
-        recipeId={openRecipeId}
-        onClose={() => setOpenRecipeId(null)}
-        onOpenRecipe={(id) => setOpenRecipeId(id)}
-      />
-    )}
+    {openRecipeId !== null && (() => {
+      const openRecipe = mealPlan.find((i) => String(i.recipe.id) === String(openRecipeId))?.recipe;
+      return (
+        <RecipeModal
+          recipeId={openRecipeId}
+          initialRecipe={openRecipe?.is_user_recipe ? openRecipe : undefined}
+          onClose={() => setOpenRecipeId(null)}
+          onOpenRecipe={(id) => setOpenRecipeId(id)}
+        />
+      );
+    })()}
 
 </>
   );
