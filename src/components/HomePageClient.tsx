@@ -207,6 +207,15 @@ const impressedIds = useRef<Set<string>>(new Set());
     return () => window.removeEventListener("scroll", onScroll);
   }, [loadMore]);
 
+  const buildFeaturedParams = (f: Filters) => {
+    const params = new URLSearchParams();
+    if (queryRef.current) params.set("query", queryRef.current);
+    if (f.diets.length) params.set("diet", f.diets.join(","));
+    if (f.cuisines.length) params.set("cuisine", f.cuisines.join(","));
+    if (f.allergies.length) params.set("intolerances", f.allergies.join(","));
+    return params;
+  };
+
   const fetchRecipes = useCallback((f: Filters) => {
     filtersRef.current = f;
     offsetRef.current = 0;
@@ -227,13 +236,19 @@ const impressedIds = useRef<Set<string>>(new Set());
       const chinFetch = hasChinese
         ? fetch(`/api/recipes/search?${chinParams}`).then((r) => r.json())
         : Promise.resolve({ results: [] });
-      Promise.all([spoonFetch, chinFetch])
-        .then(([spoon, chin]) => {
+      const featuredFetch = fetch(`/api/recipes/featured?${buildFeaturedParams(f)}`).then((r) => r.json()).catch(() => ({ results: [] }));
+      Promise.all([spoonFetch, chinFetch, featuredFetch])
+        .then(([spoon, chin, featured]) => {
+          const featuredResults: Recipe[] = featured.results || [];
           const chinResults: Recipe[] = chin.results || [];
           const spoonResults: Recipe[] = spoon.results || [];
-          const seenIds = new Set(chinResults.map((r) => String(r.id)));
-          const merged = [...chinResults, ...spoonResults.filter((r) => !seenIds.has(String(r.id)))];
-          setRecipes(rankRecipes(merged));
+          // Featured recipes go first; deduplicate everything else by id
+          const seenIds = new Set(featuredResults.map((r) => String(r.id)));
+          const filteredChin = chinResults.filter((r) => !seenIds.has(String(r.id)));
+          filteredChin.forEach((r) => seenIds.add(String(r.id)));
+          const filteredSpoon = spoonResults.filter((r) => !seenIds.has(String(r.id)));
+          const merged = [...featuredResults, ...rankRecipes([...filteredChin, ...filteredSpoon])];
+          setRecipes(merged);
           offsetRef.current = 16;
           hasMoreRef.current = spoon.hasMore ?? false;
           if (merged.length === 0) {
