@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     .from("recipes")
     .select("*")
     .eq("enabled", true)
-    .order("score", { ascending: false, nullsFirst: false });
+    .order("id", { ascending: true });
 
   if (query) {
     dbQuery = dbQuery.textSearch("search_vec", query, { type: "websearch" });
