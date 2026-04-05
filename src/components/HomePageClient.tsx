@@ -236,7 +236,7 @@ const impressedIds = useRef<Set<string>>(new Set());
       const chinFetch = hasChinese
         ? fetch(`/api/recipes/search?${chinParams}`).then((r) => r.json())
         : Promise.resolve({ results: [] });
-      const featuredFetch = fetch(`/api/recipes/featured?${buildFeaturedParams(f)}`).then((r) => r.json()).catch(() => ({ results: [] }));
+      const featuredFetch = fetch(`/api/featured-recipes?${buildFeaturedParams(f)}`).then((r) => r.json()).catch(() => ({ results: [] }));
       Promise.all([spoonFetch, chinFetch, featuredFetch])
         .then(([spoon, chin, featured]) => {
           const featuredResults: Recipe[] = featured.results || [];
