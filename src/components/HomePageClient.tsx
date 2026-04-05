@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import RecipeCard from "@/components/RecipeCard";
 import RecipeModal from "@/components/RecipeModal";
 import SearchInput from "@/components/ui/SearchInput";
@@ -12,6 +13,8 @@ import ImportWebsiteModal from "@/components/ImportWebsiteModal";
 import LoginModal from "@/components/LoginModal";
 import { useApp } from "@/context/AppContext";
 import { Recipe } from "@/lib/mockData";
+import { UserRecipe, userRecipeToRecipe } from "@/lib/userRecipes";
+import { createClient } from "@/lib/supabase/client";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 import { trackViewRecipeList, trackSearchNoResults, trackFilterApplied } from "@/lib/analytics";
 import { adjustScore, rankRecipes } from "@/lib/recipeScores";
@@ -74,11 +77,41 @@ function toggle(id: string, list: string[]): string[] {
 }
 
 
+const MY_RECIPES_ROW_LIMIT = 4;
+
 export default function HomePageClient() {
   const { preferences, setPreferences, user, pendingAction, clearPendingAction } = useApp();
   const [addStep, setAddStep] = useState<AddStep>("idle");
   const [scrapedData, setScrapedData] = useState<ScrapedRecipe | null>(null);
   const [showLogin, setShowLogin] = useState(false);
+
+  // ── My recipes ─────────────────────────────────────────────────────────────
+  const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
+  const [userRecipesLoading, setUserRecipesLoading] = useState(false);
+  const [userRecipesTotal, setUserRecipesTotal] = useState(0);
+  const [selectedUserRecipe, setSelectedUserRecipe] = useState<Recipe | null>(null);
+
+  const fetchUserRecipes = useCallback(async () => {
+    if (!user) { setUserRecipes([]); setUserRecipesTotal(0); return; }
+    setUserRecipesLoading(true);
+    try {
+      const sb = createClient();
+      const { data } = await sb
+        .from("user_recipes")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      const all = (data as UserRecipe[] || []).map(userRecipeToRecipe);
+      setUserRecipesTotal(all.length);
+      setUserRecipes(all.slice(0, MY_RECIPES_ROW_LIMIT));
+    } catch {
+      setUserRecipes([]);
+    } finally {
+      setUserRecipesLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => { fetchUserRecipes(); }, [fetchUserRecipes]);
 
   useEffect(() => {
     if (pendingAction === "add_recipe" && user) {
@@ -293,15 +326,85 @@ const impressedIds = useRef<Set<string>>(new Set());
 
   return (
     <div>
-      {/* Add recipe CTA — below hero */}
-      <div className="mb-8">
-        <button
-          onClick={handleAddRecipe}
-          className="border border-gray-200 text-navy font-semibold px-5 py-2.5 rounded-2xl hover:border-gray-300 transition-colors text-sm flex items-center gap-2"
-        >
-          <span className="text-base leading-none">+</span> Add recipe
-        </button>
-      </div>
+      {/* My recipes section */}
+      {user && (
+        <section className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-navy">My recipes</h2>
+            {userRecipesTotal > 0 && (
+              <button
+                onClick={handleAddRecipe}
+                className="border border-gray-200 text-navy font-semibold px-4 py-2 rounded-xl hover:border-gray-300 transition-colors text-sm flex items-center gap-1.5"
+              >
+                <span className="text-base leading-none">+</span> Add recipe
+              </button>
+            )}
+          </div>
+
+          {userRecipesLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
+                  <div className="aspect-[4/3] bg-gray-200" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-3 bg-gray-200 rounded w-3/4" />
+                    <div className="h-8 bg-gray-200 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : userRecipes.length === 0 ? (
+            <div className="border-2 border-dashed border-gray-200 rounded-2xl py-10 flex flex-col items-center justify-center text-center px-4">
+              <p className="text-4xl mb-3">🍳</p>
+              <p className="text-navy font-bold text-base mb-1">No recipes yet</p>
+              <p className="text-gray-400 text-sm mb-5">Import from a website or create your own</p>
+              <button
+                onClick={handleAddRecipe}
+                className="bg-navy text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-navy/90 transition-colors text-sm"
+              >
+                Add recipe
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                {userRecipes.map((recipe) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onOpen={(id) => {
+                      const r = userRecipes.find((r) => String(r.id) === String(id));
+                      if (r) setSelectedUserRecipe(r);
+                    }}
+                  />
+                ))}
+              </div>
+              {userRecipesTotal > MY_RECIPES_ROW_LIMIT && (
+                <div className="mt-4">
+                  <Link
+                    href="/my-recipes"
+                    className="text-sm text-green-600 font-semibold hover:underline"
+                  >
+                    View all recipes ({userRecipesTotal}) →
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      {/* Add recipe CTA — below hero (shown only when not logged in) */}
+      {!user && (
+        <div className="mb-8">
+          <button
+            onClick={handleAddRecipe}
+            className="border border-gray-200 text-navy font-semibold px-5 py-2.5 rounded-2xl hover:border-gray-300 transition-colors text-sm flex items-center gap-2"
+          >
+            <span className="text-base leading-none">+</span> Add recipe
+          </button>
+        </div>
+      )}
 
       {/* Recipes section */}
       <section className="pt-0">
@@ -451,6 +554,20 @@ const impressedIds = useRef<Set<string>>(new Set());
         );
       })()}
 
+      {selectedUserRecipe && (
+        <RecipeModal
+          recipeId={selectedUserRecipe.id}
+          initialRecipe={selectedUserRecipe}
+          onClose={() => setSelectedUserRecipe(null)}
+          onOpenRecipe={(id) => {
+            const r = userRecipes.find((r) => String(r.id) === String(id));
+            if (r) setSelectedUserRecipe(r);
+          }}
+          onRecipeDeleted={() => { setSelectedUserRecipe(null); fetchUserRecipes(); }}
+          onRecipeSaved={() => { setSelectedUserRecipe(null); fetchUserRecipes(); }}
+        />
+      )}
+
       {addStep === "choose" && (
         <AddRecipeModal
           onClose={() => setAddStep("idle")}
@@ -471,7 +588,7 @@ const impressedIds = useRef<Set<string>>(new Set());
           sourceUrl={addStep === "confirm-import" ? scrapedData?.source_url : undefined}
           scrapedData={addStep === "confirm-import" ? scrapedData ?? undefined : undefined}
           onClose={() => { setAddStep("idle"); setScrapedData(null); }}
-          onSaved={() => setAddStep("idle")}
+          onSaved={() => { setAddStep("idle"); fetchUserRecipes(); }}
         />
       )}
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
