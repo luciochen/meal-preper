@@ -367,7 +367,7 @@ const impressedIds = useRef<Set<string>>(new Set());
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 grid-rows-1 overflow-hidden">
                 {userRecipes.map((recipe) => (
                   <RecipeCard
                     key={recipe.id}
