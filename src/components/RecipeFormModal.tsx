@@ -18,6 +18,50 @@ import { Recipe } from "@/lib/mockData";
 interface IngredientRow extends UserRecipeIngredient {}
 interface InstructionRow { text: string }
 
+// ── Quantity scaling helpers ───────────────────────────────────────────────
+
+function parseQuantity(q: string): number | null {
+  if (!q.trim()) return null;
+  const unicodeFractions: Record<string, string> = {
+    '¼': '0.25', '½': '0.5', '¾': '0.75', '⅓': '0.3333', '⅔': '0.6667',
+    '⅛': '0.125', '⅜': '0.375', '⅝': '0.625', '⅞': '0.875',
+  };
+  let s = q.trim();
+  for (const [char, val] of Object.entries(unicodeFractions)) s = s.replace(char, val);
+  const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  const fraction = s.match(/^(\d+)\/(\d+)$/);
+  if (fraction) return parseInt(fraction[1]) / parseInt(fraction[2]);
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function formatQuantity(n: number): string {
+  if (n === Math.round(n)) return String(Math.round(n));
+  const frac: [number, string][] = [
+    [0.25, '¼'], [0.5, '½'], [0.75, '¾'], [1 / 3, '⅓'], [2 / 3, '⅔'],
+    [0.125, '⅛'], [0.375, '⅜'], [0.625, '⅝'], [0.875, '⅞'],
+  ];
+  const whole = Math.floor(n);
+  const part = n - whole;
+  for (const [val, sym] of frac) {
+    if (Math.abs(part - val) < 0.02) return whole > 0 ? `${whole} ${sym}` : sym;
+  }
+  return String(Math.round(n * 100) / 100);
+}
+
+function scaleIngredients(
+  ingredients: IngredientRow[],
+  factor: number,
+): IngredientRow[] {
+  if (factor === 1) return ingredients;
+  return ingredients.map((ing) => {
+    const qty = parseQuantity(ing.quantity);
+    if (qty === null) return ing;
+    return { ...ing, quantity: formatQuantity(qty * factor) };
+  });
+}
+
 interface FormState {
   title: string;
   description: string;
@@ -35,7 +79,7 @@ const emptyForm = (): FormState => ({
   cuisine: "",
   dietTags: [],
   readyInMinutes: "",
-  servings: "",
+  servings: "1",
   ingredients: [{ quantity: "", unit: "", name: "" }, { quantity: "", unit: "", name: "" }, { quantity: "", unit: "", name: "" }],
   instructions: [{ text: "" }],
 });
@@ -69,16 +113,18 @@ function recipeToForm(recipe: Recipe): FormState {
 
 function scrapedToForm(scraped: ScrapedRecipe & { _parsed_ingredients?: { quantity: string; unit: string; name: string }[] }): FormState {
   const totalTime = (scraped.prep_time ?? 0) + (scraped.cook_time ?? 0);
+  const originalServings = scraped.servings ? (parseInt(scraped.servings) || 1) : 1;
+  const rawIngredients: IngredientRow[] = scraped._parsed_ingredients?.length
+    ? scraped._parsed_ingredients
+    : scraped.ingredients.map(parseIngredientString);
   return {
     title: scraped.title || "",
     description: scraped.description || "",
     cuisine: scraped.cuisine || "",
     dietTags: scraped.diet_tags || [],
     readyInMinutes: totalTime > 0 ? String(totalTime) : "",
-    servings: scraped.servings ? String(parseInt(scraped.servings) || scraped.servings) : "",
-    ingredients: scraped._parsed_ingredients?.length
-      ? scraped._parsed_ingredients
-      : scraped.ingredients.map(parseIngredientString),
+    servings: "1",
+    ingredients: scaleIngredients(rawIngredients, 1 / originalServings),
     instructions: scraped.instructions.map((text) => ({ text })),
   };
 }
@@ -443,30 +489,17 @@ export default function RecipeFormModal({
               </div>
             </div>
 
-            {/* 6 + 7. Prep time & Servings */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Prep time (minutes) <span className="text-red-400">*</span></label>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.readyInMinutes}
-                  onChange={(e) => setForm((f) => ({ ...f, readyInMinutes: e.target.value }))}
-                  placeholder="30"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Servings <span className="text-red-400">*</span></label>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.servings}
-                  onChange={(e) => setForm((f) => ({ ...f, servings: e.target.value }))}
-                  placeholder="4"
-                  className={inputCls}
-                />
-              </div>
+            {/* 6. Prep time */}
+            <div>
+              <label className={labelCls}>Prep time (minutes) <span className="text-red-400">*</span></label>
+              <input
+                type="number"
+                min="1"
+                value={form.readyInMinutes}
+                onChange={(e) => setForm((f) => ({ ...f, readyInMinutes: e.target.value }))}
+                placeholder="30"
+                className={inputCls}
+              />
             </div>
 
             {/* 8. Ingredients */}

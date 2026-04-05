@@ -182,7 +182,7 @@ export default function RecipePage() {
 
           {/* Ingredients */}
           <section>
-            <h2 className="text-lg font-extrabold text-navy mb-3">Ingredients</h2>
+            <h2 className="text-lg font-extrabold text-navy mb-3">Ingredients <span className="text-sm font-normal text-gray-400">(per serving)</span></h2>
             {(() => {
               const grouped = SECTION_ORDER
                 .map((label) => ({
