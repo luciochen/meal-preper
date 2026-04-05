@@ -342,7 +342,7 @@ const impressedIds = useRef<Set<string>>(new Set());
           </div>
 
           {userRecipesLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
                   <div className="aspect-[4/3] bg-gray-200" />
@@ -367,7 +367,7 @@ const impressedIds = useRef<Set<string>>(new Set());
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                 {userRecipes.map((recipe) => (
                   <RecipeCard
                     key={recipe.id}
@@ -484,7 +484,7 @@ const impressedIds = useRef<Set<string>>(new Set());
 
         {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
                 <div className="aspect-[4/3] bg-gray-200" />
@@ -522,7 +522,7 @@ const impressedIds = useRef<Set<string>>(new Set());
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {recipes.map((recipe) => (
                 <div
                   key={recipe.id}
