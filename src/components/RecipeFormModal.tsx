@@ -504,7 +504,7 @@ export default function RecipeFormModal({
 
             {/* 8. Ingredients */}
             <div>
-              <label className={labelCls}>Ingredients</label>
+              <label className={labelCls}>Ingredients <span className="text-gray-300 font-normal normal-case">per serving</span></label>
               <div className="space-y-2">
                 {/* Column labels */}
                 <div className="grid grid-cols-[80px_100px_1fr_28px] gap-2 px-0.5">
