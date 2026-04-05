@@ -291,6 +291,20 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                   />
                 )}
 
+                {/* Source link — imported user recipe */}
+                {recipe.is_user_recipe && recipe.source_url && (
+                  <div className="flex items-center gap-1.5">
+                    <a
+                      href={recipe.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-green-600 font-semibold hover:underline"
+                    >
+                      View full recipe on {(() => { try { return new URL(recipe.source_url).hostname.replace(/^www\./, ""); } catch { return recipe.source_url; } })()} →
+                    </a>
+                  </div>
+                )}
+
                 {/* Ingredients — user recipe grouped */}
                 {recipe.is_user_recipe && (recipe.ingredients_json?.length ?? 0) > 0 && (
                   <section>
@@ -339,6 +353,20 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                       );
                     })()}
                   </section>
+                )}
+
+                {/* Source link — Spoonacular recipe with no steps */}
+                {!recipe.is_user_recipe && steps.length === 0 && recipe.sourceUrl && (
+                  <div className="flex items-center gap-1.5">
+                    <a
+                      href={recipe.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-green-600 font-semibold hover:underline"
+                    >
+                      View full recipe on {(() => { try { return new URL(recipe.sourceUrl).hostname.replace(/^www\./, ""); } catch { return recipe.sourceUrl; } })()} →
+                    </a>
+                  </div>
                 )}
 
                 {/* Ingredients — Spoonacular grouped */}
@@ -424,18 +452,6 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                         </div>
                       ))}
                     </div>
-                  </section>
-                ) : recipe?.sourceUrl ? (
-                  <section>
-                    <h2 className="text-base font-bold text-navy mb-2">Cooking instructions</h2>
-                    <a
-                      href={recipe.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-sm text-green-600 font-semibold hover:underline"
-                    >
-                      View full recipe on {new URL(recipe.sourceUrl).hostname.replace(/^www\./, "")} →
-                    </a>
                   </section>
                 ) : null}
 
