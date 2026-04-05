@@ -18,6 +18,10 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-plus-jakarta)", "system-ui", "sans-serif"],
       },
+      fontSize: {
+        xs: ["0.875rem", { lineHeight: "1.25rem" }],  // 14px (was 12px)
+        sm: ["1rem", { lineHeight: "1.5rem" }],         // 16px (was 14px)
+      },
     },
   },
   plugins: [],
