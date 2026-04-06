@@ -6,14 +6,10 @@ export default function HomePage() {
       {/* Hero — rendered server-side so search engines index it */}
       <div className="pt-8 pb-10">
         <h1 className="text-[2.5rem] font-extrabold text-navy leading-[1.15] max-w-[800px]">
-          Pick the recipes you love,{" "}
-          <br />
-          and we&apos;ll whip up a{" "}
-          <span className="text-zest">meal prep plan</span> 🥗✨
+          Your meal prep recipe hub
         </h1>
         <p className="mt-4 text-navy/60 text-base max-w-xl">
-          Browse hundreds of meal-prep friendly recipes, track fridge life, and
-          get a personalised grocery list — all in one place.
+          Discover meal-prep recipes you&apos;ll love, save your favourites, and get your grocery list done in seconds.
         </p>
       </div>
 
