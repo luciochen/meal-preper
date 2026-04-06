@@ -264,11 +264,13 @@ const impressedIds = useRef<Set<string>>(new Set());
       const spoonFetch = needsSpoon
         ? fetch(`/api/spoonacular/search?${buildParams(f, 0)}`).then((r) => r.json())
         : Promise.resolve({ results: [], hasMore: false });
-      const chinParams = new URLSearchParams({ cuisine: "chinese" });
-      if (queryRef.current) chinParams.set("query", queryRef.current);
-      const chinFetch = hasChinese
-        ? fetch(`/api/recipes/search?${chinParams}`).then((r) => r.json())
-        : Promise.resolve({ results: [] });
+      // Always fetch from Supabase recipes table with current filters
+      const dbParams = new URLSearchParams();
+      if (queryRef.current) dbParams.set("query", queryRef.current);
+      if (f.cuisines.length) dbParams.set("cuisine", f.cuisines.join(","));
+      if (f.diets.length) dbParams.set("diet", f.diets.join(","));
+      if (f.allergies.length) dbParams.set("intolerances", f.allergies.join(","));
+      const chinFetch = fetch(`/api/recipes/search?${dbParams}`).then((r) => r.json());
       const featuredFetch = fetch(`/api/featured-recipes?${buildFeaturedParams(f)}`).then((r) => r.json()).catch(() => ({ results: [] }));
       Promise.all([spoonFetch, chinFetch, featuredFetch])
         .then(([spoon, chin, featured]) => {
