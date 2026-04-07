@@ -39,7 +39,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const anthropic = new Anthropic({ apiKey: anthropicKey });
 
 const BUCKET = "recipe-images";
-const MODEL = "fal-ai/flux-pro/v1.1";
+const MODEL = "fal-ai/recraft-v3";
 const FORCE_REGENERATE_IDS = new Set<number>([]);
 
 // ─── Recipe data ─────────────────────────────────────────────────────────────
@@ -358,7 +358,8 @@ async function generateImage(recipe: (typeof ENGLISH_RECIPES)[0], index: number,
     const result = (await fal.run(MODEL, {
       input: {
         prompt,
-        image_size: "landscape_4_3",
+        image_size: { width: 512, height: 384 },
+        style: "realistic_image",
         num_images: 1,
       },
     })) as { data: { images: { url: string }[] } };
