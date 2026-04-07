@@ -10,6 +10,7 @@ import RecipeModal from "@/components/RecipeModal";
 import AddRecipeModal from "@/components/AddRecipeModal";
 import RecipeFormModal from "@/components/RecipeFormModal";
 import ImportWebsiteModal from "@/components/ImportWebsiteModal";
+import ImportInstagramModal from "@/components/ImportInstagramModal";
 import LoginModal from "@/components/LoginModal";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 import {
@@ -17,7 +18,7 @@ import {
   trackRecipeImportAbandoned,
 } from "@/lib/analytics";
 
-type Step = "idle" | "choose" | "scratch" | "website" | "confirm-import";
+type Step = "idle" | "choose" | "scratch" | "website" | "instagram" | "confirm-import";
 
 export default function MyRecipesPage() {
   const { user, authLoading, pendingAction, clearPendingAction } = useApp();
@@ -177,13 +178,21 @@ export default function MyRecipesPage() {
       {step === "choose" && (
         <AddRecipeModal
           onClose={() => { trackRecipeImportAbandoned("choose"); setStep("idle"); }}
-          onSelect={(method) => setStep(method === "website" ? "website" : "scratch")}
+          onSelect={(method) => setStep(method === "website" ? "website" : method === "instagram" ? "instagram" : "scratch")}
         />
       )}
 
       {step === "website" && (
         <ImportWebsiteModal
           onClose={() => { trackRecipeImportAbandoned("website"); setStep("choose"); }}
+          onImported={(data) => { setScrapedData(data); setStep("confirm-import"); }}
+          onAddManually={() => setStep("scratch")}
+        />
+      )}
+
+      {step === "instagram" && (
+        <ImportInstagramModal
+          onClose={() => { trackRecipeImportAbandoned("instagram"); setStep("choose"); }}
           onImported={(data) => { setScrapedData(data); setStep("confirm-import"); }}
           onAddManually={() => setStep("scratch")}
         />

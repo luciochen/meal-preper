@@ -10,6 +10,7 @@ import FilterDropdown from "@/components/ui/FilterDropdown";
 import AddRecipeModal from "@/components/AddRecipeModal";
 import RecipeFormModal from "@/components/RecipeFormModal";
 import ImportWebsiteModal from "@/components/ImportWebsiteModal";
+import ImportInstagramModal from "@/components/ImportInstagramModal";
 import LoginModal from "@/components/LoginModal";
 import { useApp } from "@/context/AppContext";
 import { Recipe } from "@/lib/mockData";
@@ -19,7 +20,7 @@ import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 import { trackViewRecipeList, trackSearchNoResults, trackFilterApplied } from "@/lib/analytics";
 import { adjustScore, rankRecipes } from "@/lib/recipeScores";
 
-type AddStep = "idle" | "choose" | "scratch" | "website" | "confirm-import";
+type AddStep = "idle" | "choose" | "scratch" | "website" | "instagram" | "confirm-import";
 
 const FILTER_CATEGORIES = [
   {
@@ -559,11 +560,18 @@ const impressedIds = useRef<Set<string>>(new Set());
       {addStep === "choose" && (
         <AddRecipeModal
           onClose={() => setAddStep("idle")}
-          onSelect={(method) => setAddStep(method === "website" ? "website" : "scratch")}
+          onSelect={(method) => setAddStep(method === "website" ? "website" : method === "instagram" ? "instagram" : "scratch")}
         />
       )}
       {addStep === "website" && (
         <ImportWebsiteModal
+          onClose={() => setAddStep("choose")}
+          onImported={(data) => { setScrapedData(data); setAddStep("confirm-import"); }}
+          onAddManually={() => setAddStep("scratch")}
+        />
+      )}
+      {addStep === "instagram" && (
+        <ImportInstagramModal
           onClose={() => setAddStep("choose")}
           onImported={(data) => { setScrapedData(data); setAddStep("confirm-import"); }}
           onAddManually={() => setAddStep("scratch")}

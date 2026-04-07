@@ -292,6 +292,165 @@ If this page does not contain a recipe, return: { "error": "no_recipe_found" }`;
   }
 }
 
+// ── Instagram import ──────────────────────────────────────────────────────────
+
+function isInstagramUrl(url: string): boolean {
+  return /instagram\.com\/(p|reel|tv)\//.test(url);
+}
+
+async function importFromInstagram(url: string): Promise<ScrapedRecipe | null> {
+  // Strip query params for a clean canonical URL
+  const cleanUrl = url.split("?")[0].replace(/\/$/, "") + "/";
+
+  let caption: string | null = null;
+  let imageUrl: string | null = null;
+
+  // Try fetching the page with the Facebook crawler UA — Instagram serves
+  // structured JSON-LD (SocialMediaPosting) to this agent for SEO purposes
+  const INSTAGRAM_UAS = [
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+  ];
+
+  for (const ua of INSTAGRAM_UAS) {
+    try {
+      const res = await fetch(cleanUrl, {
+        headers: {
+          "User-Agent": ua,
+          Accept: "text/html,application/xhtml+xml,*/*",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        signal: AbortSignal.timeout(15000),
+        redirect: "follow",
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+
+      // Parse JSON-LD blocks — Instagram uses SocialMediaPosting type
+      const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(html)) !== null) {
+        try {
+          const data = JSON.parse(m[1].trim());
+          const items: Record<string, unknown>[] = Array.isArray(data) ? data : [data];
+          for (const item of items) {
+            if (item["@type"] === "SocialMediaPosting" && item.articleBody) {
+              caption = String(item.articleBody);
+              // image field: array of objects or strings
+              const img = item.image;
+              if (Array.isArray(img)) {
+                const first = img[0];
+                imageUrl = typeof first === "string" ? first : (first as Record<string,string>)?.url ?? null;
+              } else if (typeof img === "string") {
+                imageUrl = img;
+              } else if (img && typeof img === "object") {
+                imageUrl = (img as Record<string, string>).url ?? null;
+              }
+              break;
+            }
+          }
+          if (caption) break;
+        } catch { /* keep looking */ }
+      }
+
+      // Always grab og:image as fallback image source
+      if (!imageUrl) imageUrl = extractMeta(html, "og:image");
+      if (caption) break;
+    } catch { /* try next UA */ }
+  }
+
+  // oEmbed fallback — only used when FB app credentials are configured
+  if (!caption || !imageUrl) {
+    const appId = process.env.FACEBOOK_APP_ID;
+    const clientToken = process.env.FACEBOOK_CLIENT_TOKEN;
+    if (appId && clientToken) {
+      try {
+        const oembedUrl =
+          `https://graph.facebook.com/v18.0/instagram_oembed` +
+          `?url=${encodeURIComponent(url)}` +
+          `&access_token=${appId}|${clientToken}` +
+          `&fields=thumbnail_url,title,author_name`;
+        const res = await fetch(oembedUrl, { signal: AbortSignal.timeout(10000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (!caption && data.title) caption = data.title;
+          if (!imageUrl && data.thumbnail_url) imageUrl = data.thumbnail_url;
+        }
+      } catch { /* oEmbed failed */ }
+    }
+  }
+
+  if (!caption) return null;
+
+  return extractRecipeFromInstagramCaption(caption, url, imageUrl);
+}
+
+async function extractRecipeFromInstagramCaption(
+  caption: string,
+  url: string,
+  imageUrl: string | null
+): Promise<ScrapedRecipe | null> {
+  const prompt = `You are a recipe extraction assistant. Extract recipe data from this Instagram post caption.
+
+Caption:
+${caption}
+
+Return ONLY valid JSON in this exact shape (use null for fields you cannot find):
+{
+  "title": "Recipe name",
+  "description": "Short description (1–2 sentences)",
+  "ingredients": ["2 cups flour", "1 tsp salt"],
+  "instructions": ["Step 1 text", "Step 2 text"],
+  "prep_time": 15,
+  "cook_time": 30,
+  "servings": "4",
+  "cuisine": "Italian" | null,
+  "diet_tags": [],
+  "parsed_ingredients": [
+    { "quantity": "2", "unit": "cups", "name": "flour" }
+  ]
+}
+
+cuisine must be one of: ${VALID_CUISINES.join(", ")}, or null.
+diet_tags must be a subset of: ${VALID_DIET_TAGS.join(", ")}.
+If this caption does not contain a recipe, return: { "error": "no_recipe_found" }`;
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = (msg.content[0] as { type: string; text: string }).text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const data = JSON.parse(jsonMatch[0]);
+    if (data.error || !data.title) return null;
+
+    return {
+      title: String(data.title).trim(),
+      description: String(data.description ?? "").trim(),
+      image_url: imageUrl,
+      ingredients: Array.isArray(data.ingredients) ? data.ingredients.map(String) : [],
+      instructions: Array.isArray(data.instructions) ? data.instructions.map(String) : [],
+      prep_time: typeof data.prep_time === "number" ? data.prep_time : null,
+      cook_time: typeof data.cook_time === "number" ? data.cook_time : null,
+      servings: data.servings != null ? String(data.servings) : null,
+      cuisine: VALID_CUISINES.includes(data.cuisine) ? data.cuisine : null,
+      diet_tags: Array.isArray(data.diet_tags)
+        ? data.diet_tags.filter((t: string) => VALID_DIET_TAGS.includes(t))
+        : [],
+      source_url: url,
+      _parsed_ingredients: Array.isArray(data.parsed_ingredients)
+        ? data.parsed_ingredients
+        : undefined,
+    } as ScrapedRecipe & { _parsed_ingredients?: { quantity: string; unit: string; name: string }[] };
+  } catch {
+    return null;
+  }
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 const USER_AGENTS = [
@@ -306,6 +465,13 @@ export async function POST(request: Request) {
 
   if (!url || !/^https?:\/\//i.test(url)) {
     return NextResponse.json({ error: "invalid_url" }, { status: 400 });
+  }
+
+  // Instagram posts require a different extraction strategy
+  if (isInstagramUrl(url)) {
+    const recipe = await importFromInstagram(url);
+    if (recipe) return NextResponse.json(recipe);
+    return NextResponse.json({ error: "no_recipe_found" }, { status: 400 });
   }
 
   let lastHtml: string | null = null;

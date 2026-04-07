@@ -87,7 +87,7 @@ export function trackRecipeUrlFetchResult(success: boolean, errorType?: string) 
 }
 
 /** Fired when the user closes the import flow without saving */
-export function trackRecipeImportAbandoned(step: "choose" | "website" | "scratch" | "confirm_import") {
+export function trackRecipeImportAbandoned(step: "choose" | "website" | "instagram" | "scratch" | "confirm_import") {
   track("recipe_import_abandoned", { step });
 }
 

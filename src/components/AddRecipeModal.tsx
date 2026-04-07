@@ -35,8 +35,7 @@ const OPTIONS: { id: Method; label: string; desc: string; icon: React.ReactNode;
   {
     id: "instagram",
     label: "Import from Instagram",
-    desc: "Coming soon!",
-    disabled: true,
+    desc: "Paste a link to any public post or Reel with a recipe in the caption.",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
