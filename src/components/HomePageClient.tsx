@@ -398,7 +398,7 @@ const impressedIds = useRef<Set<string>>(new Set());
       <section className="pt-0">
         {/* Section header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-navy">For you</h2>
+          <h2 className="text-xl font-bold text-navy">Discover</h2>
         </div>
 
         {/* Search + Filter bar */}
