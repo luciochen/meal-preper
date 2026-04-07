@@ -309,10 +309,7 @@ async function upsertRecipes() {
 // ─── Build image prompt via Claude ───────────────────────────────────────────
 
 async function buildImagePromptWithClaude(recipe: (typeof ENGLISH_RECIPES)[0]): Promise<string> {
-  const ingredientList = recipe.ingredients
-    .slice(0, 7)
-    .map((i) => `${i.name}`)
-    .join(", ");
+  const ingredientList = recipe.ingredients.map((i) => i.name).join(", ");
 
   const stepsSummary = recipe.steps.map((s) => s.step).join(" ");
 
