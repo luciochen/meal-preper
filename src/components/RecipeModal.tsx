@@ -242,7 +242,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
               <div className="p-5 space-y-5">
 
                 {/* Title + share */}
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center justify-between gap-3">
                   <h1 className="text-lg font-bold text-navy leading-snug flex-1">
                     {formatTitle(recipe.title)}
                   </h1>
