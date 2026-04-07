@@ -335,7 +335,7 @@ const impressedIds = useRef<Set<string>>(new Set());
           {user && userRecipesTotal > 0 && (
             <button
               onClick={handleAddRecipe}
-              className="border border-gray-200 text-navy font-semibold px-4 py-2 rounded-xl hover:border-gray-300 transition-colors text-sm flex items-center gap-1.5"
+              className="bg-navy text-white font-semibold px-4 py-2 rounded-xl hover:bg-navy/90 transition-colors text-sm flex items-center gap-1.5"
             >
               <span className="text-base leading-none">+</span> Add recipe
             </button>
