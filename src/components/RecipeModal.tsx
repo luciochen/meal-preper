@@ -248,7 +248,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                   </h1>
                   <button
                     onClick={handleShare}
-                    className="flex-shrink-0 flex items-center gap-1.5 border border-gray-300 text-gray-500 hover:border-navy hover:text-navy font-medium text-sm px-3 py-1.5 rounded-full transition-all"
+                    className="flex-shrink-0 flex items-center gap-1.5 border border-gray-300 text-navy font-medium text-sm px-3 py-1.5 rounded-full transition-all hover:border-navy/60"
                     aria-label="Share"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
