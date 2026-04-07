@@ -39,7 +39,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const anthropic = new Anthropic({ apiKey: anthropicKey });
 
 const BUCKET = "recipe-images";
-const MODEL = "fal-ai/recraft-v3";
+const MODEL = "fal-ai/flux-pro/v1.1";
 const FORCE_REGENERATE_IDS = new Set<number>([]);
 
 // ─── Recipe data ─────────────────────────────────────────────────────────────
@@ -322,13 +322,14 @@ async function buildImagePromptWithClaude(recipe: (typeof ENGLISH_RECIPES)[0]): 
     messages: [
       {
         role: "user",
-        content: `You are a food photography prompt expert. Given this meal prep recipe, write a concise image generation prompt (max 80 words) for a professional food photo. Focus on the finished dish appearance, key ingredients visible, plating style, and mood.
+        content: `Given this meal prep recipe, fill in only the [DISH NAME] placeholder in the prompt below with a vivid 10-15 word description of the finished dish's appearance (colours, textures, key visible ingredients). Output the complete prompt and nothing else.
 
 Recipe: ${recipe.title}
 Key ingredients: ${ingredientList}
-Cooking method summary: ${stepsSummary.slice(0, 300)}
+Cooking method: ${stepsSummary.slice(0, 300)}
 
-Write ONLY the image prompt, nothing else. Format: [dish description], [key visible elements], [plating/serving style], cinematic food photography, 45-degree angle, warm professional lighting, appetising, sharp focus.`,
+Prompt template:
+Professional food photography of [DISH NAME], served on a clean ceramic plate or bowl, 45-degree overhead angle, soft diffused natural light from one side, shallow depth of field with sharp focus on the hero ingredient, minimal elegant plating with a small fresh herb or garnish accent, neutral background (white, light stone, warm wood, or linen), warm and inviting color tone, photorealistic, editorial food styling, appetizing and fresh, 4K detail`,
       },
     ],
   });
@@ -357,8 +358,7 @@ async function generateImage(recipe: (typeof ENGLISH_RECIPES)[0], index: number,
     const result = (await fal.run(MODEL, {
       input: {
         prompt,
-        image_size: { width: 512, height: 384 },
-        style: "realistic_image",
+        image_size: "landscape_4_3",
         num_images: 1,
       },
     })) as { data: { images: { url: string }[] } };
