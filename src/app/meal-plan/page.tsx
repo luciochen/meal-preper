@@ -43,6 +43,24 @@ const CATEGORY_DISPLAY: Record<string, string> = {
 
 const CATEGORY_ORDER = ["Produce", "Meats and seafoods", "Dairy & eggs", "Pantry", "Frozen", "Beverages", "Other"];
 
+// Formats a numeric amount into a human-readable string.
+// Returns null when the value rounds to zero (don't display anything).
+function formatAmount(n: number): string | null {
+  if (n <= 0) return null;
+  const FRACTIONS: [number, string][] = [
+    [1/8, "1/8"], [1/4, "1/4"], [1/3, "1/3"], [3/8, "3/8"],
+    [1/2, "1/2"], [5/8, "5/8"], [2/3, "2/3"], [3/4, "3/4"], [7/8, "7/8"],
+  ];
+  const whole = Math.floor(n);
+  const frac = n - whole;
+  if (frac < 0.04) return whole > 0 ? String(whole) : null;
+  for (const [val, str] of FRACTIONS) {
+    if (Math.abs(frac - val) < 0.04) return whole > 0 ? `${whole} ${str}` : str;
+  }
+  const rounded = Math.round(n * 100) / 100;
+  return rounded > 0 ? String(rounded) : null;
+}
+
 export default function MealPlanPage() {
   const { mealPlan, updateServings, removeFromMealPlan } = useApp();
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -90,7 +108,8 @@ export default function MealPlanPage() {
     for (const [category, items] of Object.entries(groceryList)) {
       lines.push(`${CATEGORY_ICONS[category] || "📦"} ${category}`);
       for (const item of items) {
-        const qty = item.amount > 0 ? ` (${item.amount < 1 ? (Math.round(item.amount * 4) / 4) : Math.round(item.amount)}${item.unit ? ` ${item.unit}` : ""})` : "";
+        const fmt = formatAmount(item.amount);
+        const qty = fmt ? ` (${fmt}${item.unit ? ` ${item.unit}` : ""})` : "";
         lines.push(`• ${item.name}${qty}`);
       }
       lines.push("");
@@ -251,9 +270,9 @@ export default function MealPlanPage() {
                         <span className={`flex-1 text-sm capitalize transition-colors ${isChecked ? "text-gray-300 line-through" : "text-gray-700"}`}>
                           {item.name}
                         </span>
-                        {item.amount > 0 && (
+                        {formatAmount(item.amount) && (
                           <span className={`text-xs font-medium transition-colors ${isChecked ? "text-gray-300" : "text-gray-500"}`}>
-                            {item.amount < 1 ? (Math.round(item.amount * 4) / 4).toFixed(2).replace(/\.?0+$/, "") : Math.round(item.amount)}{item.unit ? ` ${item.unit}` : ""}
+                            {formatAmount(item.amount)}{item.unit ? ` ${item.unit}` : ""}
                           </span>
                         )}
                       </button>
