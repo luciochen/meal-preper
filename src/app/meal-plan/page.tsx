@@ -43,6 +43,25 @@ const CATEGORY_DISPLAY: Record<string, string> = {
 
 const CATEGORY_ORDER = ["Produce", "Meats and seafoods", "Dairy & eggs", "Pantry", "Frozen", "Beverages", "Other"];
 
+// Volume unit → ml conversion (used to combine same ingredient with different units)
+const TO_ML: Record<string, number> = {
+  tsp: 4.93, teaspoon: 4.93, teaspoons: 4.93,
+  tbsp: 14.79, tablespoon: 14.79, tablespoons: 14.79,
+  cup: 236.59, cups: 236.59,
+  oz: 29.57, ounce: 29.57, ounces: 29.57,
+  pint: 473.18, pints: 473.18,
+  quart: 946.35, quarts: 946.35,
+  liter: 1000, liters: 1000, l: 1000,
+  ml: 1,
+};
+
+function fromMl(ml: number): { amount: number; unit: string } {
+  if (ml >= 946) return { amount: ml / 946.35, unit: "quart" };
+  if (ml >= 236) return { amount: ml / 236.59, unit: "cup" };
+  if (ml >= 14.79) return { amount: ml / 14.79, unit: "tbsp" };
+  return { amount: ml / 4.93, unit: "tsp" };
+}
+
 // Formats a numeric amount into a human-readable string.
 // Returns null when the value rounds to zero (don't display anything).
 function formatAmount(n: number): string | null {
@@ -77,13 +96,25 @@ export default function MealPlanPage() {
         const rawCat = classifyIngredient(ing.name);
         const cat = CATEGORY_DISPLAY[rawCat] ?? rawCat;
         if (!map[cat]) map[cat] = {};
-        const unit = ing.unit ?? "";
-        const amount = ing.amount ?? 0;
-        const key = `${ing.name.toLowerCase()}__${unit}`;
+        const unit = (ing.unit ?? "").toLowerCase().trim();
+        const amount = (ing.amount ?? 0) * ratio;
+        const key = ing.name.toLowerCase().trim();
         if (map[cat][key]) {
-          map[cat][key].amount += amount * ratio;
+          const existing = map[cat][key];
+          const existingMl = TO_ML[existing.unit] ?? 0;
+          const incomingMl = TO_ML[unit] ?? 0;
+          if (existingMl > 0 && incomingMl > 0) {
+            // Both are volume units — convert to ml, sum, then pick best unit
+            const totalMl = existing.amount * existingMl + amount * incomingMl;
+            const converted = fromMl(totalMl);
+            existing.amount = converted.amount;
+            existing.unit = converted.unit;
+          } else if (existing.unit === unit) {
+            existing.amount += amount;
+          }
+          // Different non-convertible units (e.g. "oz" weight vs "pieces") — keep first entry only
         } else {
-          map[cat][key] = { name: ing.name, amount: amount * ratio, unit, checked: false };
+          map[cat][key] = { name: ing.name, amount, unit, checked: false };
         }
       }
     }
