@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
+import { filterByIngredients, filterByTitle } from "@/lib/fuzzySearch";
 
 const DIET_TAG_MAP: Record<string, string[]> = {
   "vegan":          ["vegan"],
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest) {
   const supabase = createPublicClient();
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || "";
+  const ingredientQuery = searchParams.get("ingredients") || "";
   const diet = searchParams.get("diet") || "";
   const cuisine = searchParams.get("cuisine") || "";
   const intolerances = searchParams.get("intolerances") || "";
@@ -59,7 +61,9 @@ export async function GET(req: NextRequest) {
     .eq("enabled", true)
     .order("id", { ascending: true });
 
-  if (query) {
+  // If searching by ingredient, skip full-text search (we'll filter post-fetch by ingredient names)
+  // If searching by recipe title, use PostgreSQL full-text search
+  if (query && !ingredientQuery) {
     dbQuery = dbQuery.textSearch("search_vec", query, { type: "websearch" });
   }
 
@@ -106,5 +110,17 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ results: results.map(dbRowToRecipe) });
+  let mapped = results.map(dbRowToRecipe);
+
+  // Ingredient search: fuzzy match against ingredient names
+  if (ingredientQuery) {
+    mapped = filterByIngredients(mapped, ingredientQuery);
+  }
+
+  // Recipe title fuzzy search when used alongside ingredient search
+  if (query && ingredientQuery) {
+    mapped = filterByTitle(mapped, query);
+  }
+
+  return NextResponse.json({ results: mapped });
 }

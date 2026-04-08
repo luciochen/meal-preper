@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MOCK_RECIPES } from "@/lib/mockData";
 import { computeFridgeLife, computeMicrowaveScore, isMealPrepSuitable } from "@/lib/mealPrepUtils";
+import { filterByIngredients, filterByTitle } from "@/lib/fuzzySearch";
 
 const PAGE_SIZE = 16;
 
@@ -27,10 +28,10 @@ async function fetchCuisinePool(
     addRecipeInformation: "true",
     fillIngredients: "true",
     instructionsRequired: "true",
-    minSpoonacularScore: "70",
+    minSpoonacularScore: "80",
     maxReadyTime: "45",
     cuisine,
-    number: "50",
+    number: "100",
     offset: "0",
     ...extra,
   });
@@ -46,6 +47,7 @@ async function fetchCuisinePool(
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || "";
+  const ingredientQuery = searchParams.get("ingredients") || "";
   const diet = searchParams.get("diet") || "";
   // Chinese is never passed here — it's handled by /api/recipes/search
   const cuisine = searchParams.get("cuisine") || "";
@@ -57,6 +59,7 @@ export async function GET(req: NextRequest) {
   if (apiKey) {
     const extra: Record<string, string> = {};
     if (query) extra.query = query;
+    if (ingredientQuery) extra.includeIngredients = ingredientQuery;
     if (diet) extra.diet = diet;
     if (intolerances) extra.intolerances = intolerances;
 
@@ -95,7 +98,7 @@ export async function GET(req: NextRequest) {
       .filter((r) => {
         const ic = ((r.extendedIngredients as unknown[]) ?? []).length;
         const sc = ((r.analyzedInstructions as { steps: unknown[] }[])?.[0]?.steps ?? []).length;
-        return ic >= 4 && ic <= 12 && sc >= 3;
+        return ic >= 3 && ic <= 12 && sc >= 2;
       })
       .map((r) => ({
         ...r,
@@ -111,6 +114,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Fuzzy ingredient filter (client-side validation — Spoonacular's includeIngredients is a hint, not strict)
+    if (ingredientQuery) {
+      type SpoonRecipe = { extendedIngredients: { name: string }[] };
+      merged = (filterByIngredients(merged as unknown as SpoonRecipe[], ingredientQuery) as unknown) as typeof merged;
+    }
+
     const page = merged.slice(offset, offset + PAGE_SIZE);
     const hasMore = offset + PAGE_SIZE < merged.length;
     return NextResponse.json({ results: page, hasMore });
@@ -118,7 +127,8 @@ export async function GET(req: NextRequest) {
 
   // Mock fallback
   let results = [...MOCK_RECIPES];
-  if (query) results = results.filter((r) => r.title.toLowerCase().includes(query.toLowerCase()));
+  if (query) results = filterByTitle(results, query);
+  if (ingredientQuery) results = filterByIngredients(results, ingredientQuery);
   if (diet) results = results.filter((r) => r.diets.some((d) => diet.split(",").includes(d)));
   if (cuisine) results = results.filter((r) => r.cuisines.some((c) => cuisine.split(",").includes(c)));
   if (intolerances) {

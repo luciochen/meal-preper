@@ -305,11 +305,12 @@ async function importFromInstagram(url: string): Promise<ScrapedRecipe | null> {
   let caption: string | null = null;
   let imageUrl: string | null = null;
 
-  // Try fetching the page with the Facebook crawler UA — Instagram serves
-  // structured JSON-LD (SocialMediaPosting) to this agent for SEO purposes
+  // Instagram renders og:description (caption) and og:image for public posts.
+  // Try multiple user agents — a real browser UA avoids some bot-detection.
   const INSTAGRAM_UAS = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
-    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
   ];
 
   for (const ua of INSTAGRAM_UAS) {
@@ -319,6 +320,7 @@ async function importFromInstagram(url: string): Promise<ScrapedRecipe | null> {
           "User-Agent": ua,
           Accept: "text/html,application/xhtml+xml,*/*",
           "Accept-Language": "en-US,en;q=0.9",
+          "Cache-Control": "no-cache",
         },
         signal: AbortSignal.timeout(15000),
         redirect: "follow",
@@ -326,7 +328,13 @@ async function importFromInstagram(url: string): Promise<ScrapedRecipe | null> {
       if (!res.ok) continue;
       const html = await res.text();
 
-      // Parse JSON-LD blocks — Instagram uses SocialMediaPosting type
+      // Primary: og:description contains the post caption for public posts
+      const ogDesc = extractMeta(html, "og:description");
+      if (ogDesc && ogDesc.length > 20) {
+        caption = ogDesc;
+      }
+
+      // Also try JSON-LD SocialMediaPosting for articleBody (more complete caption)
       const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
       let m: RegExpExecArray | null;
       while ((m = re.exec(html)) !== null) {
@@ -335,8 +343,7 @@ async function importFromInstagram(url: string): Promise<ScrapedRecipe | null> {
           const items: Record<string, unknown>[] = Array.isArray(data) ? data : [data];
           for (const item of items) {
             if (item["@type"] === "SocialMediaPosting" && item.articleBody) {
-              caption = String(item.articleBody);
-              // image field: array of objects or strings
+              caption = String(item.articleBody); // prefer full caption from JSON-LD
               const img = item.image;
               if (Array.isArray(img)) {
                 const first = img[0];
@@ -349,18 +356,19 @@ async function importFromInstagram(url: string): Promise<ScrapedRecipe | null> {
               break;
             }
           }
-          if (caption) break;
+          if (caption && imageUrl) break;
         } catch { /* keep looking */ }
       }
 
-      // Always grab og:image as fallback image source
+      // og:image as image fallback
       if (!imageUrl) imageUrl = extractMeta(html, "og:image");
-      if (caption) break;
+
+      if (caption) break; // Got what we need
     } catch { /* try next UA */ }
   }
 
   // oEmbed fallback — only used when FB app credentials are configured
-  if (!caption || !imageUrl) {
+  if (!caption) {
     const appId = process.env.FACEBOOK_APP_ID;
     const clientToken = process.env.FACEBOOK_CLIENT_TOKEN;
     if (appId && clientToken) {
@@ -469,6 +477,13 @@ export async function POST(request: Request) {
 
   // Instagram posts require a different extraction strategy
   if (isInstagramUrl(url)) {
+    // If the client already provides the caption (paste fallback), skip scraping
+    const caption = body.caption as string | undefined;
+    if (caption && caption.trim().length > 10) {
+      const recipe = await extractRecipeFromInstagramCaption(caption.trim(), url, null);
+      if (recipe) return NextResponse.json(recipe);
+      return NextResponse.json({ error: "no_recipe_found" }, { status: 400 });
+    }
     const recipe = await importFromInstagram(url);
     if (recipe) return NextResponse.json(recipe);
     return NextResponse.json({ error: "no_recipe_found" }, { status: 400 });

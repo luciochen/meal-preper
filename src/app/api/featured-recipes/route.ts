@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import { FEATURED_USER_ID } from "@/lib/featured";
 import { userRecipeToRecipe, UserRecipe } from "@/lib/userRecipes";
+import { filterByTitle, filterByIngredients } from "@/lib/fuzzySearch";
 
 export async function GET(req: NextRequest) {
   const supabase = createPublicClient();
@@ -9,6 +10,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || "";
+  const ingredientQuery = searchParams.get("ingredients") || "";
   const diet = searchParams.get("diet") || "";
   const cuisine = searchParams.get("cuisine") || "";
   const intolerances = searchParams.get("intolerances") || "";
@@ -24,10 +26,9 @@ export async function GET(req: NextRequest) {
 
   let results = data as UserRecipe[];
 
-  // Text search against title
+  // Text search against title (fuzzy)
   if (query) {
-    const q = query.toLowerCase();
-    results = results.filter((r) => r.title.toLowerCase().includes(q));
+    results = filterByTitle(results, query);
   }
 
   // Cuisine filter — match against recipe.cuisine (case-insensitive)
@@ -54,5 +55,10 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ results: results.map(userRecipeToRecipe) });
+  const mapped = results.map(userRecipeToRecipe);
+
+  // Ingredient search (fuzzy) — runs after mapping so we have extendedIngredients
+  const final = ingredientQuery ? filterByIngredients(mapped, ingredientQuery) : mapped;
+
+  return NextResponse.json({ results: final });
 }

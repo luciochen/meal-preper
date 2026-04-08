@@ -26,35 +26,37 @@ export default function ImportInstagramModal({ onClose, onImported, onAddManuall
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // When auto-scraping fails, show a caption paste fallback
+  const [showCaptionFallback, setShowCaptionFallback] = useState(false);
+  const [caption, setCaption] = useState("");
 
   const isValidInstagramUrl = (val: string) =>
     /instagram\.com\/(p|reel|tv)\//.test(val.trim());
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = url.trim();
-    if (!trimmed) return;
-
-    if (!isValidInstagramUrl(trimmed)) {
-      setError("Please paste a valid Instagram post or Reel link");
-      return;
-    }
-
+  const submit = async (opts: { url: string; caption?: string }) => {
     setLoading(true);
     setError("");
-
     try {
+      const body: Record<string, string> = { url: opts.url };
+      if (opts.caption) body.caption = opts.caption;
+
       const res = await fetch("/api/recipe-import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: trimmed }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
 
       if (!res.ok || data.error) {
         const code = data.error as string;
         trackRecipeUrlFetchResult(false, code || "fetch_failed");
-        setError(ERROR_MESSAGES[code] ?? ERROR_MESSAGES.fetch_failed);
+        if (code === "no_recipe_found" && !showCaptionFallback) {
+          // First failure: surface the caption paste fallback
+          setShowCaptionFallback(true);
+          setError("");
+        } else {
+          setError(ERROR_MESSAGES[code] ?? ERROR_MESSAGES.fetch_failed);
+        }
       } else {
         trackRecipeUrlFetchResult(true);
         onImported(data as ScrapedRecipe);
@@ -65,6 +67,23 @@ export default function ImportInstagramModal({ onClose, onImported, onAddManuall
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    if (!isValidInstagramUrl(trimmed)) {
+      setError("Please paste a valid Instagram post or Reel link");
+      return;
+    }
+    await submit({ url: trimmed });
+  };
+
+  const handleCaptionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!caption.trim() || !url.trim()) return;
+    await submit({ url: url.trim(), caption: caption.trim() });
   };
 
   return (
@@ -97,52 +116,99 @@ export default function ImportInstagramModal({ onClose, onImported, onAddManuall
         </div>
         <p className="text-sm text-gray-500 mb-6 ml-11">Paste a link to any public post or Reel.</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => { setUrl(e.target.value); if (error) setError(""); }}
-              placeholder="https://www.instagram.com/p/…"
-              autoFocus
-              disabled={loading}
-              className={`w-full border rounded-xl px-4 py-3 text-sm text-navy placeholder-gray-400 outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
-                error ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-navy"
-              }`}
-            />
-            {error ? (
-              <p className="mt-1.5 text-xs text-red-500">{error}</p>
-            ) : (
-              <p className="mt-1.5 text-xs text-gray-400">
-                Works with posts and Reels that have the recipe written in the caption
-              </p>
-            )}
+        {!showCaptionFallback ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => { setUrl(e.target.value); if (error) setError(""); }}
+                placeholder="https://www.instagram.com/p/…"
+                autoFocus
+                disabled={loading}
+                className={`w-full border rounded-xl px-4 py-3 text-sm text-navy placeholder-gray-400 outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
+                  error ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-navy"
+                }`}
+              />
+              {error ? (
+                <p className="mt-1.5 text-xs text-red-500">{error}</p>
+              ) : (
+                <p className="mt-1.5 text-xs text-gray-400">
+                  Works with posts and Reels that have the recipe written in the caption
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !url.trim()}
+              className="w-full bg-navy text-white font-semibold py-3 rounded-xl text-sm hover:bg-navy/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Reading Instagram post…
+                </>
+              ) : (
+                "Import recipe"
+              )}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleCaptionSubmit} className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
+              Instagram restricts automatic reading of posts. Paste the post caption below and we'll extract the recipe for you.
+            </div>
+            <div>
+              <textarea
+                value={caption}
+                onChange={(e) => { setCaption(e.target.value); if (error) setError(""); }}
+                placeholder="Paste the Instagram post caption here…"
+                autoFocus
+                disabled={loading}
+                rows={6}
+                className={`w-full border rounded-xl px-4 py-3 text-sm text-navy placeholder-gray-400 outline-none transition-colors resize-none disabled:bg-gray-50 disabled:cursor-not-allowed ${
+                  error ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-navy"
+                }`}
+              />
+              {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !caption.trim()}
+              className="w-full bg-navy text-white font-semibold py-3 rounded-xl text-sm hover:bg-navy/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Extracting recipe…
+                </>
+              ) : (
+                "Extract recipe"
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setShowCaptionFallback(false); setError(""); setCaption(""); }}
+              className="w-full text-sm text-gray-400 hover:text-navy transition-colors"
+            >
+              Try the link again
+            </button>
+          </form>
+        )}
+
+        {!showCaptionFallback && (
+          <div className="mt-4 text-center">
+            <button
+              onClick={onAddManually}
+              className="text-sm text-gray-400 hover:text-navy transition-colors"
+            >
+              Add manually instead
+            </button>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading || !url.trim()}
-            className="w-full bg-navy text-white font-semibold py-3 rounded-xl text-sm hover:bg-navy/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                Reading Instagram post…
-              </>
-            ) : (
-              "Import recipe"
-            )}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <button
-            onClick={onAddManually}
-            className="text-sm text-gray-400 hover:text-navy transition-colors"
-          >
-            Add manually instead
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -144,6 +144,8 @@ const [recipes, setRecipes] = useState<Recipe[]>([]);
     if (id) setSelectedRecipeId(isNaN(Number(id)) ? id : Number(id));
   }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchMode, setSearchMode] = useState<"recipe" | "ingredients">("recipe");
+  const searchModeRef = useRef<"recipe" | "ingredients">("recipe");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const offsetRef = useRef(0);
   const filtersRef = useRef(filters);
@@ -203,7 +205,11 @@ const impressedIds = useRef<Set<string>>(new Set());
 
   const buildParams = (f: Filters, offset: number) => {
     const params = new URLSearchParams();
-    if (queryRef.current) params.set("query", queryRef.current);
+    if (searchModeRef.current === "ingredients") {
+      if (queryRef.current) params.set("ingredients", queryRef.current);
+    } else {
+      if (queryRef.current) params.set("query", queryRef.current);
+    }
     if (f.diets.length) params.set("diet", f.diets.join(","));
     // Never send "chinese" to Spoonacular — those come from Supabase only
     const spoonCuisines = f.cuisines.filter((c) => c !== "chinese");
@@ -243,7 +249,11 @@ const impressedIds = useRef<Set<string>>(new Set());
 
   const buildFeaturedParams = (f: Filters) => {
     const params = new URLSearchParams();
-    if (queryRef.current) params.set("query", queryRef.current);
+    if (searchModeRef.current === "ingredients") {
+      if (queryRef.current) params.set("ingredients", queryRef.current);
+    } else {
+      if (queryRef.current) params.set("query", queryRef.current);
+    }
     if (f.diets.length) params.set("diet", f.diets.join(","));
     if (f.cuisines.length) params.set("cuisine", f.cuisines.join(","));
     if (f.allergies.length) params.set("intolerances", f.allergies.join(","));
@@ -267,7 +277,11 @@ const impressedIds = useRef<Set<string>>(new Set());
         : Promise.resolve({ results: [], hasMore: false });
       // Always fetch from Supabase recipes table with current filters
       const dbParams = new URLSearchParams();
-      if (queryRef.current) dbParams.set("query", queryRef.current);
+      if (searchModeRef.current === "ingredients") {
+        if (queryRef.current) dbParams.set("ingredients", queryRef.current);
+      } else {
+        if (queryRef.current) dbParams.set("query", queryRef.current);
+      }
       if (f.cuisines.length) dbParams.set("cuisine", f.cuisines.join(","));
       if (f.diets.length) dbParams.set("diet", f.diets.join(","));
       if (f.allergies.length) dbParams.set("intolerances", f.allergies.join(","));
@@ -322,6 +336,12 @@ const impressedIds = useRef<Set<string>>(new Set());
     setSearchQuery(q);
     queryRef.current = q;
     fetchRecipes(filters);
+  };
+
+  const handleSearchModeToggle = (mode: "recipe" | "ingredients") => {
+    setSearchMode(mode);
+    searchModeRef.current = mode;
+    if (searchQuery) fetchRecipes(filters);
   };
 
   const totalActive = filters.diets.length + filters.cuisines.length + filters.types.length + filters.allergies.length;
@@ -402,13 +422,42 @@ const impressedIds = useRef<Set<string>>(new Set());
           <h2 className="text-xl font-bold text-navy">Discover</h2>
         </div>
 
-        {/* Search + Filter bar */}
-        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 no-scrollbar">
+        {/* Search bar */}
+        <div className="flex items-center gap-2 mb-2">
           <SearchInput
             value={searchQuery}
             onChange={handleSearchChange}
-            className="flex-1 min-w-[160px] max-w-xs"
+            placeholder={searchMode === "ingredients" ? "e.g. chicken, garlic, lemon" : "Search recipes"}
+            className="flex-1"
           />
+        </div>
+
+        {/* Search mode toggle + filters */}
+        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 no-scrollbar">
+          {/* Mode pills */}
+          <div className="flex items-center gap-1 flex-shrink-0 bg-gray-100 rounded-full p-0.5">
+            <button
+              onClick={() => handleSearchModeToggle("recipe")}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                searchMode === "recipe"
+                  ? "bg-white text-navy shadow-sm"
+                  : "text-gray-500 hover:text-navy"
+              }`}
+            >
+              Recipe
+            </button>
+            <button
+              onClick={() => handleSearchModeToggle("ingredients")}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                searchMode === "ingredients"
+                  ? "bg-white text-navy shadow-sm"
+                  : "text-gray-500 hover:text-navy"
+              }`}
+            >
+              Ingredients
+            </button>
+          </div>
+
           {FILTER_CATEGORIES.map((cat) => (
             <FilterDropdown
               key={cat.key}
@@ -490,7 +539,11 @@ const impressedIds = useRef<Set<string>>(new Set());
             <p className="text-4xl mb-3">🥗</p>
             <p className="text-navy font-bold text-lg mb-1">No recipes found</p>
             <p className="text-gray-400 text-sm mb-4">
-              {searchQuery && totalActive > 0
+              {searchQuery && searchMode === "ingredients"
+                ? totalActive > 0
+                  ? `No recipes with "${searchQuery}" and your current filters`
+                  : `No recipes found with those ingredients`
+                : searchQuery && totalActive > 0
                 ? `No results for "${searchQuery}" with your current filters`
                 : searchQuery
                 ? `No results for "${searchQuery}"`
