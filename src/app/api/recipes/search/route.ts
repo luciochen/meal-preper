@@ -44,7 +44,6 @@ export async function GET(req: NextRequest) {
   const supabase = createPublicClient();
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || "";
-  const ingredientQuery = searchParams.get("ingredients") || "";
   const diet = searchParams.get("diet") || "";
   const cuisine = searchParams.get("cuisine") || "";
   const intolerances = searchParams.get("intolerances") || "";
@@ -55,72 +54,79 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  let dbQuery = supabase
-    .from("recipes")
-    .select("*")
-    .eq("enabled", true)
-    .order("id", { ascending: true });
+  // Run two parallel queries when there's a search term:
+  // 1. FTS query → title/text matches
+  // 2. Broad query (no FTS) → ingredient match pool
+  // When no query, a single broad fetch suffices.
 
-  // If searching by ingredient, skip full-text search (we'll filter post-fetch by ingredient names)
-  // If searching by recipe title, use PostgreSQL full-text search
-  if (query && !ingredientQuery) {
-    dbQuery = dbQuery.textSearch("search_vec", query, { type: "websearch" });
+  const buildBase = () =>
+    supabase
+      .from("recipes")
+      .select("*")
+      .eq("enabled", true)
+      .order("id", { ascending: true });
+
+  const applyFilters = (q: ReturnType<typeof buildBase>) => {
+    if (diet) {
+      const dietIds = diet.split(",").map((d) => d.trim()).filter(Boolean);
+      const mappedTags = dietIds.flatMap((d) => DIET_TAG_MAP[d] ?? [d]);
+      if (mappedTags.length > 0) q = q.overlaps("tags", mappedTags);
+    }
+    if (cuisine) {
+      const cuisines = cuisine.split(",").map((c) => c.trim()).filter(Boolean);
+      if (cuisines.length > 0) q = q.overlaps("tags", cuisines);
+    }
+    if (minutesMax) q = q.lte("minutes", minutesMax);
+    return q;
+  };
+
+  let titleRows: Record<string, unknown>[] = [];
+  let ingredientPool: Record<string, unknown>[] = [];
+
+  if (query) {
+    // Parallel: FTS for title matches + broad pool for ingredient matching
+    const [ftsFetch, poolFetch] = await Promise.all([
+      applyFilters(buildBase().textSearch("search_vec", query, { type: "websearch" })).limit(100),
+      applyFilters(buildBase()).limit(200),
+    ]);
+    titleRows = ftsFetch.data ?? [];
+    ingredientPool = poolFetch.data ?? [];
+  } else {
+    const { data } = await applyFilters(buildBase()).limit(200);
+    ingredientPool = data ?? [];
   }
 
-  // Diet: map preference labels → Food.com tags
-  if (diet) {
-    const dietIds = diet.split(",").map((d) => d.trim()).filter(Boolean);
-    const mappedTags = dietIds.flatMap((d) => DIET_TAG_MAP[d] ?? [d]);
-    if (mappedTags.length > 0) dbQuery = dbQuery.overlaps("tags", mappedTags);
+  const postFilter = (rows: Record<string, unknown>[]) => {
+    let r = rows;
+    if (microwaveOnly) {
+      r = r.filter((row) => {
+        const level = (row.microwave_score as { level?: string })?.level;
+        return level === "excellent" || level === "good";
+      });
+    }
+    if (intolerances) {
+      const allergens = intolerances.split(",").map((a) => a.trim().toLowerCase());
+      r = r.filter((row) => {
+        const ings = (row.ingredients as { name: string }[]) ?? [];
+        return !allergens.some((a) => ings.some((i) => i.name.toLowerCase().includes(a)));
+      });
+    }
+    return r;
+  };
+
+  if (!query) {
+    return NextResponse.json({ results: postFilter(ingredientPool).map(dbRowToRecipe) });
   }
 
-  // Cuisine: direct tag overlap
-  if (cuisine) {
-    const cuisines = cuisine.split(",").map((c) => c.trim()).filter(Boolean);
-    if (cuisines.length > 0) dbQuery = dbQuery.overlaps("tags", cuisines);
-  }
+  // Title matches (from FTS)
+  const titleMapped = postFilter(titleRows).map(dbRowToRecipe);
+  const titleIds = new Set(titleMapped.map((r) => String(r.id)));
 
-  // Quick prep: minutes ≤ 30
-  if (minutesMax) {
-    dbQuery = dbQuery.lte("minutes", minutesMax);
-  }
+  // Ingredient matches from the broad pool, excluding title matches
+  const ingMapped = postFilter(ingredientPool)
+    .map(dbRowToRecipe)
+    .filter((r) => !titleIds.has(String(r.id)));
+  const ingMatches = filterByIngredients(ingMapped, query);
 
-  const { data, error } = await dbQuery.limit(200);
-
-  if (error || !data) {
-    return NextResponse.json({ results: [] });
-  }
-
-  let results = data;
-
-  // Microwave-friendly: post-fetch filter
-  if (microwaveOnly) {
-    results = results.filter((row) => {
-      const level = (row.microwave_score as { level?: string })?.level;
-      return level === "excellent" || level === "good";
-    });
-  }
-
-  // Allergen exclusion: post-fetch filter
-  if (intolerances) {
-    const allergens = intolerances.split(",").map((a) => a.trim().toLowerCase());
-    results = results.filter((row) => {
-      const ings = (row.ingredients as { name: string }[]) ?? [];
-      return !allergens.some((a) => ings.some((i) => i.name.toLowerCase().includes(a)));
-    });
-  }
-
-  let mapped = results.map(dbRowToRecipe);
-
-  // Ingredient search: fuzzy match against ingredient names
-  if (ingredientQuery) {
-    mapped = filterByIngredients(mapped, ingredientQuery);
-  }
-
-  // Recipe title fuzzy search when used alongside ingredient search
-  if (query && ingredientQuery) {
-    mapped = filterByTitle(mapped, query);
-  }
-
-  return NextResponse.json({ results: mapped });
+  return NextResponse.json({ results: [...titleMapped, ...ingMatches] });
 }

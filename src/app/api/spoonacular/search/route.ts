@@ -47,7 +47,6 @@ async function fetchCuisinePool(
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || "";
-  const ingredientQuery = searchParams.get("ingredients") || "";
   const diet = searchParams.get("diet") || "";
   // Chinese is never passed here — it's handled by /api/recipes/search
   const cuisine = searchParams.get("cuisine") || "";
@@ -59,7 +58,6 @@ export async function GET(req: NextRequest) {
   if (apiKey) {
     const extra: Record<string, string> = {};
     if (query) extra.query = query;
-    if (ingredientQuery) extra.includeIngredients = ingredientQuery;
     if (diet) extra.diet = diet;
     if (intolerances) extra.intolerances = intolerances;
 
@@ -114,10 +112,18 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Fuzzy ingredient filter (client-side validation — Spoonacular's includeIngredients is a hint, not strict)
-    if (ingredientQuery) {
-      type SpoonRecipe = { extendedIngredients: { name: string }[] };
-      merged = (filterByIngredients(merged as unknown as SpoonRecipe[], ingredientQuery) as unknown) as typeof merged;
+    // When there's a query, split the pool: title matches first, ingredient-only matches second.
+    // Spoonacular's `query` param searches by title/description; we also check ingredients via fuse.js.
+    if (query) {
+      type SpoonRecipe = { title: string; extendedIngredients: { name: string }[] };
+      const pool = merged as unknown as SpoonRecipe[];
+      const titleMatches = filterByTitle(pool, query);
+      const titleIds = new Set(titleMatches.map((r) => r.title));
+      const ingOnly = filterByIngredients(
+        pool.filter((r) => !titleIds.has(r.title)),
+        query
+      );
+      merged = ([...titleMatches, ...ingOnly] as unknown) as typeof merged;
     }
 
     const page = merged.slice(offset, offset + PAGE_SIZE);
@@ -125,15 +131,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ results: page, hasMore });
   }
 
-  // Mock fallback
-  let results = [...MOCK_RECIPES];
-  if (query) results = filterByTitle(results, query);
-  if (ingredientQuery) results = filterByIngredients(results, ingredientQuery);
-  if (diet) results = results.filter((r) => r.diets.some((d) => diet.split(",").includes(d)));
-  if (cuisine) results = results.filter((r) => r.cuisines.some((c) => cuisine.split(",").includes(c)));
+  // Mock fallback — title matches first, then ingredient-only matches
+  let pool = [...MOCK_RECIPES];
+  if (diet) pool = pool.filter((r) => r.diets.some((d) => diet.split(",").includes(d)));
+  if (cuisine) pool = pool.filter((r) => r.cuisines.some((c) => cuisine.split(",").includes(c)));
   if (intolerances) {
     const allergens = intolerances.split(",");
-    results = results.filter((r) => !allergens.some((a) => r.extendedIngredients.some((i) => i.name.toLowerCase().includes(a.toLowerCase()))));
+    pool = pool.filter((r) => !allergens.some((a) => r.extendedIngredients.some((i) => i.name.toLowerCase().includes(a.toLowerCase()))));
+  }
+  let results: typeof pool;
+  if (query) {
+    const titleMatches = filterByTitle(pool, query);
+    const titleSet = new Set(titleMatches.map((r) => r.id));
+    const ingOnly = filterByIngredients(pool.filter((r) => !titleSet.has(r.id)), query);
+    results = [...titleMatches, ...ingOnly];
+  } else {
+    results = pool;
   }
   const page = results.slice(offset, offset + PAGE_SIZE);
   return NextResponse.json({ results: page, hasMore: offset + PAGE_SIZE < results.length });

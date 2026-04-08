@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || "";
-  const ingredientQuery = searchParams.get("ingredients") || "";
   const diet = searchParams.get("diet") || "";
   const cuisine = searchParams.get("cuisine") || "";
   const intolerances = searchParams.get("intolerances") || "";
@@ -25,11 +24,6 @@ export async function GET(req: NextRequest) {
   if (error || !data) return NextResponse.json({ results: [] });
 
   let results = data as UserRecipe[];
-
-  // Text search against title (fuzzy)
-  if (query) {
-    results = filterByTitle(results, query);
-  }
 
   // Cuisine filter — match against recipe.cuisine (case-insensitive)
   if (cuisine) {
@@ -57,8 +51,12 @@ export async function GET(req: NextRequest) {
 
   const mapped = results.map(userRecipeToRecipe);
 
-  // Ingredient search (fuzzy) — runs after mapping so we have extendedIngredients
-  const final = ingredientQuery ? filterByIngredients(mapped, ingredientQuery) : mapped;
+  if (!query) return NextResponse.json({ results: mapped });
 
-  return NextResponse.json({ results: final });
+  // Split: title matches first, ingredient-only matches second
+  const titleMatches = filterByTitle(mapped, query);
+  const titleIds = new Set(titleMatches.map((r) => String(r.id)));
+  const ingMatches = filterByIngredients(mapped, query).filter((r) => !titleIds.has(String(r.id)));
+
+  return NextResponse.json({ results: [...titleMatches, ...ingMatches] });
 }
