@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
 import { filterByIngredients, filterByTitle } from "@/lib/fuzzySearch";
+import { PROTEIN_KEYWORDS } from "@/lib/feedDiversity";
 
 const DIET_TAG_MAP: Record<string, string[]> = {
   "vegan":          ["vegan"],
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
   const diet = searchParams.get("diet") || "";
   const cuisine = searchParams.get("cuisine") || "";
   const intolerances = searchParams.get("intolerances") || "";
+  const proteins = searchParams.get("proteins") || "";
   const minutesMax = searchParams.get("minutes_max") ? parseInt(searchParams.get("minutes_max")!) : null;
   const microwaveOnly = searchParams.get("microwave") === "1";
 
@@ -110,6 +112,17 @@ export async function GET(req: NextRequest) {
         const ings = (row.ingredients as { name: string }[]) ?? [];
         return !allergens.some((a) => ings.some((i) => i.name.toLowerCase().includes(a)));
       });
+    }
+    if (proteins) {
+      const selected = proteins.split(",").map((p) => p.trim().toLowerCase());
+      const keywords = selected.flatMap((p) => PROTEIN_KEYWORDS[p] ?? []);
+      if (keywords.length > 0) {
+        r = r.filter((row) => {
+          const ings = (row.ingredients as { name: string }[]) ?? [];
+          const haystack = ings.map((i) => i.name.toLowerCase()).join(" ");
+          return keywords.some((k) => haystack.includes(k));
+        });
+      }
     }
     return r;
   };

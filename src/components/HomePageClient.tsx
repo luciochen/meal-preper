@@ -19,6 +19,9 @@ import { createClient } from "@/lib/supabase/client";
 import { ScrapedRecipe } from "@/app/api/recipe-import/route";
 import { trackViewRecipeList, trackSearchNoResults, trackFilterApplied } from "@/lib/analytics";
 import { adjustScore, rankRecipes } from "@/lib/recipeScores";
+import { sendInteraction } from "@/lib/interactions";
+import { getOrCreateAnonId } from "@/lib/anonId";
+import { FEED_FLAGS } from "@/lib/feedConfig";
 
 type AddStep = "idle" | "choose" | "scratch" | "website" | "instagram" | "confirm-import";
 
@@ -51,6 +54,18 @@ const FILTER_CATEGORIES = [
     ],
   },
   {
+    key: "proteins" as const,
+    label: "Protein type",
+    chips: [
+      { id: "chicken",    label: "Chicken",     icon: "🍗" },
+      { id: "beef",       label: "Beef",        icon: "🥩" },
+      { id: "pork",       label: "Pork",        icon: "🐷" },
+      { id: "egg",        label: "Eggs",        icon: "🥚" },
+      { id: "seafood",    label: "Seafood",     icon: "🐟" },
+      { id: "vegetarian", label: "Vegetarian",  icon: "🌱" },
+    ],
+  },
+  {
     key: "allergies" as const,
     label: "Allergies",
     chips: [
@@ -71,6 +86,7 @@ interface Filters {
   cuisines: string[];
   types: string[];
   allergies: string[];
+  proteins: string[];
 }
 
 function toggle(id: string, list: string[]): string[] {
@@ -128,13 +144,15 @@ export default function HomePageClient() {
 
 const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [filters, setFilters] = useState<Filters>(() => {
     try {
       const saved = localStorage.getItem("zest_filters");
-      if (saved) return JSON.parse(saved) as Filters;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { types: [], proteins: [], ...parsed } as Filters;
+      }
     } catch {}
-    return { diets: preferences.diets, cuisines: preferences.cuisines, types: [], allergies: preferences.allergies };
+    return { diets: preferences.diets, cuisines: preferences.cuisines, types: [], allergies: preferences.allergies, proteins: [] };
   });
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState<number | string | null>(null);
@@ -145,22 +163,22 @@ const [recipes, setRecipes] = useState<Recipe[]>([]);
   }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const offsetRef = useRef(0);
   const filtersRef = useRef(filters);
   const queryRef = useRef("");
-  const loadingMoreRef = useRef(false);
-  const hasMoreRef = useRef(false);
 const impressedIds = useRef<Set<string>>(new Set());
   const clickedIds = useRef<Set<string>>(new Set());
   const cardObserverRef = useRef<IntersectionObserver | null>(null);
 
-  // Flush impressed-but-not-clicked recipes with -1 penalty
+  // Flush impressed-but-not-clicked recipes
   const flushImpressions = useCallback(() => {
     impressedIds.current.forEach((id) => {
-      if (!clickedIds.current.has(id)) adjustScore(id, -1);
+      if (!clickedIds.current.has(id)) {
+        adjustScore(id, -1); // legacy localStorage score (Phase 1)
+        sendInteraction(id, "impression_miss", user?.id); // server-side signal (Phase 2+)
+      }
     });
     impressedIds.current.clear();
-  }, []);
+  }, [user?.id]);
 
   // Card impression observer — created once, reused across recipe renders
   useEffect(() => {
@@ -201,92 +219,56 @@ const impressedIds = useRef<Set<string>>(new Set());
     setSelectedRecipeId(id);
   }, []);
 
-  const buildParams = (f: Filters, offset: number) => {
-    const params = new URLSearchParams();
-    if (queryRef.current) params.set("query", queryRef.current);
-    if (f.diets.length) params.set("diet", f.diets.join(","));
-    // Never send "chinese" to Spoonacular — those come from Supabase only
-    const spoonCuisines = f.cuisines.filter((c) => c !== "chinese");
-    if (spoonCuisines.length) params.set("cuisine", spoonCuisines.join(","));
-    if (f.allergies.length) params.set("intolerances", f.allergies.join(","));
-    params.set("offset", String(offset));
-    return params;
-  };
-
-  const loadMore = useCallback(() => {
-    if (loadingMoreRef.current || !hasMoreRef.current) return;
-    loadingMoreRef.current = true;
-    setLoadingMore(true);
-    fetch(`/api/spoonacular/search?${buildParams(filtersRef.current, offsetRef.current)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setRecipes((prev) => [...prev, ...(d.results || [])]);
-        offsetRef.current += 16;
-        hasMoreRef.current = d.hasMore ?? false;
-      })
-      .finally(() => {
-        loadingMoreRef.current = false;
-        setLoadingMore(false);
-      });
-  }, []);
-
-  // Scroll-based infinite load — only fires when user actively scrolls near the bottom
-  useEffect(() => {
-    const onScroll = () => {
-      if (loadingMoreRef.current || !hasMoreRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-      if (scrollHeight - scrollTop - clientHeight < 300) loadMore();
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [loadMore]);
-
-  const buildFeaturedParams = (f: Filters) => {
-    const params = new URLSearchParams();
-    if (queryRef.current) params.set("query", queryRef.current);
-    if (f.diets.length) params.set("diet", f.diets.join(","));
-    if (f.cuisines.length) params.set("cuisine", f.cuisines.join(","));
-    if (f.allergies.length) params.set("intolerances", f.allergies.join(","));
-    return params;
-  };
-
   const fetchRecipes = useCallback((f: Filters) => {
     filtersRef.current = f;
-    offsetRef.current = 0;
-    hasMoreRef.current = false;
     setLoading(true);
     setRecipes([]);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const hasChinese = f.cuisines.includes("chinese");
-      const nonChineseCuisines = f.cuisines.filter((c) => c !== "chinese");
-      // Only call Spoonacular if there are non-Chinese filters or no cuisine filter at all
-      const needsSpoon = !hasChinese || nonChineseCuisines.length > 0;
-      const spoonFetch = needsSpoon
-        ? fetch(`/api/spoonacular/search?${buildParams(f, 0)}`).then((r) => r.json())
-        : Promise.resolve({ results: [], hasMore: false });
-      // Always fetch from Supabase recipes table with current filters
-      const dbParams = new URLSearchParams();
-      if (queryRef.current) dbParams.set("query", queryRef.current);
-      if (f.cuisines.length) dbParams.set("cuisine", f.cuisines.join(","));
-      if (f.diets.length) dbParams.set("diet", f.diets.join(","));
-      if (f.allergies.length) dbParams.set("intolerances", f.allergies.join(","));
-      const chinFetch = fetch(`/api/recipes/search?${dbParams}`).then((r) => r.json());
-      const featuredFetch = fetch(`/api/featured-recipes?${buildFeaturedParams(f)}`).then((r) => r.json()).catch(() => ({ results: [] }));
-      Promise.all([spoonFetch, chinFetch, featuredFetch])
-        .then(([spoon, chin, featured]) => {
+      const params = new URLSearchParams();
+      if (queryRef.current) params.set("query", queryRef.current);
+      if (f.cuisines.length) params.set("cuisine", f.cuisines.join(","));
+      if (f.diets.length) params.set("diet", f.diets.join(","));
+      if (f.allergies.length) params.set("intolerances", f.allergies.join(","));
+      if (f.proteins.length) params.set("proteins", f.proteins.join(","));
+
+      // Phase 2+: single personalized feed endpoint
+      if (!FEED_FLAGS.randomShuffle) {
+        if (user?.id) {
+          params.set("user_id", user.id);
+        } else {
+          const anonId = getOrCreateAnonId();
+          if (anonId) params.set("anon_id", anonId);
+        }
+
+        fetch(`/api/recipes/feed?${params}`)
+          .then((r) => r.json())
+          .then((data) => {
+            const results: Recipe[] = data.results || [];
+            setRecipes(results);
+            if (results.length === 0) {
+              const activeFilters = Object.entries(filtersRef.current).flatMap(([k, ids]) => (ids as string[]).map((id) => `${k}:${id}`));
+              trackSearchNoResults(queryRef.current, activeFilters);
+            } else {
+              trackViewRecipeList(results.length);
+            }
+          })
+          .finally(() => setLoading(false));
+        return;
+      }
+
+      // Phase 1: original dual-fetch (no personalization)
+      const dbFetch = fetch(`/api/recipes/search?${params}`).then((r) => r.json());
+      const featuredFetch = fetch(`/api/featured-recipes?${params}`).then((r) => r.json()).catch(() => ({ results: [] }));
+
+      Promise.all([dbFetch, featuredFetch])
+        .then(([db, featured]) => {
           const featuredResults: Recipe[] = featured.results || [];
-          const chinResults: Recipe[] = chin.results || [];
-          const spoonResults: Recipe[] = spoon.results || [];
-          // Featured recipes go first; deduplicate everything else by id
+          const dbResults: Recipe[] = db.results || [];
           const seenIds = new Set(featuredResults.map((r) => String(r.id)));
-          const filteredChin = chinResults.filter((r) => !seenIds.has(String(r.id)));
-          filteredChin.forEach((r) => seenIds.add(String(r.id)));
-          const filteredSpoon = spoonResults.filter((r) => !seenIds.has(String(r.id)));
-          const merged = [...featuredResults, ...rankRecipes([...filteredChin, ...filteredSpoon])];
+          const filtered = dbResults.filter((r) => !seenIds.has(String(r.id)));
+          const merged = [...featuredResults, ...rankRecipes(filtered)];
           setRecipes(merged);
-          offsetRef.current = 16;
-          hasMoreRef.current = spoon.hasMore ?? false;
           if (merged.length === 0) {
             const activeFilters = Object.entries(filtersRef.current).flatMap(([k, ids]) => (ids as string[]).map((id) => `${k}:${id}`));
             trackSearchNoResults(queryRef.current, activeFilters);
@@ -296,7 +278,7 @@ const impressedIds = useRef<Set<string>>(new Set());
         })
         .finally(() => setLoading(false));
     }, 400);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => { fetchRecipes(filters); }, [fetchRecipes]);
 
@@ -314,7 +296,7 @@ const impressedIds = useRef<Set<string>>(new Set());
   };
 
   const clearAllFilters = () => {
-    saveFilters({ diets: [], cuisines: [], types: [], allergies: [] });
+    saveFilters({ diets: [], cuisines: [], types: [], allergies: [], proteins: [] });
     setOpenCategory(null);
   };
 
@@ -324,7 +306,7 @@ const impressedIds = useRef<Set<string>>(new Set());
     fetchRecipes(filters);
   };
 
-  const totalActive = filters.diets.length + filters.cuisines.length + filters.types.length + filters.allergies.length;
+  const totalActive = filters.diets.length + filters.cuisines.length + filters.types.length + filters.allergies.length + filters.proteins.length;
   const openCat = FILTER_CATEGORIES.find((c) => c.key === openCategory) ?? null;
 
   return (
@@ -522,11 +504,6 @@ const impressedIds = useRef<Set<string>>(new Set());
                 </div>
               ))}
             </div>
-            {loadingMore && (
-              <div className="mt-6 flex justify-center py-4">
-                <div className="w-5 h-5 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin" />
-              </div>
-            )}
           </>
         )}
       </section>

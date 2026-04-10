@@ -1,3 +1,5 @@
+import { CURRENT_PHASE } from "./feedConfig";
+
 const KEY = "tangie_recipe_scores";
 const CLAMP = { min: -30, max: 60 };
 
@@ -27,6 +29,8 @@ export function adjustScore(id: string | number, delta: number): void {
 }
 
 export function rankRecipes<T extends { id: string | number }>(recipes: T[]): T[] {
+  // Phase 2+: feed endpoint pre-ranks; client-side ranking is a no-op
+  if (CURRENT_PHASE >= 2) return recipes;
   const scores = getScores();
   return [...recipes].sort((a, b) => {
     const sa = scores[String(a.id)] ?? 0;

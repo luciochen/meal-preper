@@ -3,6 +3,7 @@ import { createPublicClient } from "@/lib/supabase/server";
 import { FEATURED_USER_ID } from "@/lib/featured";
 import { userRecipeToRecipe, UserRecipe } from "@/lib/userRecipes";
 import { filterByTitle, filterByIngredients } from "@/lib/fuzzySearch";
+import { PROTEIN_KEYWORDS } from "@/lib/feedDiversity";
 
 export async function GET(req: NextRequest) {
   const supabase = createPublicClient();
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
   const diet = searchParams.get("diet") || "";
   const cuisine = searchParams.get("cuisine") || "";
   const intolerances = searchParams.get("intolerances") || "";
+  const proteins = searchParams.get("proteins") || "";
 
   const { data, error } = await supabase
     .from("user_recipes")
@@ -47,6 +49,17 @@ export async function GET(req: NextRequest) {
         r.ingredients_json.some((ing) => ing.name.toLowerCase().includes(allergen))
       )
     );
+  }
+
+  if (proteins) {
+    const selected = proteins.split(",").map((p) => p.trim().toLowerCase());
+    const keywords = selected.flatMap((p) => PROTEIN_KEYWORDS[p] ?? []);
+    if (keywords.length > 0) {
+      results = results.filter((r) => {
+        const haystack = r.ingredients_json.map((i) => i.name.toLowerCase()).join(" ");
+        return keywords.some((k) => haystack.includes(k));
+      });
+    }
   }
 
   const mapped = results.map(userRecipeToRecipe);

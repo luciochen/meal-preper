@@ -9,6 +9,7 @@ import RecipeFormModal from "@/components/RecipeFormModal";
 import { formatTitle } from "@/lib/formatTitle";
 import { trackOpenRecipe, trackAddToMealPlan } from "@/lib/analytics";
 import { adjustScore } from "@/lib/recipeScores";
+import { sendInteraction } from "@/lib/interactions";
 
 const SECTION_ORDER = ["Produce", "Meat & Seafood", "Dairy & Eggs", "Pantry", "Frozen", "Other"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -70,16 +71,13 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
     setSimilar([]);
     setAddExpanded(false);
 
-    const isCustomRecipe = Number(id) >= 9000000;
-    const detailEndpoint = isCustomRecipe ? `/api/recipes/${id}` : `/api/spoonacular/${id}`;
-
     if (recipeCache.has(id)) {
       const cached = recipeCache.get(id)!;
       setRecipe(cached);
       setServings(getMealPlanServings(cached.id) || 1);
       setLoading(false);
     } else {
-      fetch(detailEndpoint)
+      fetch(`/api/recipes/${id}`)
         .then((r) => r.json())
         .then((d) => {
           recipeCache.set(id, d);
@@ -92,8 +90,8 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
 
     if (similarCache.has(id)) {
       setSimilar(similarCache.get(id)!);
-    } else if (!isCustomRecipe) {
-      fetch(`/api/spoonacular/${id}/similar`)
+    } else {
+      fetch(`/api/recipes/${id}/similar`)
         .then((r) => r.json())
         .then((d) => {
           const list = Array.isArray(d) ? d.slice(0, 3) : [];
@@ -105,14 +103,20 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
 
   useEffect(() => { fetchRecipe(recipeId); }, [recipeId, fetchRecipe]);
 
-  // Behavior scoring: +2 on open, ±delta on close based on dwell time
+  // Behavior scoring: legacy localStorage score + new server-side interaction events
   useEffect(() => {
     openedAt.current = Date.now();
     adjustScore(recipeId, 2);
     return () => {
       const elapsed = Date.now() - openedAt.current;
-      if (elapsed < 5000) adjustScore(recipeId, -2);
-      else if (elapsed > 30000) adjustScore(recipeId, 3);
+      if (elapsed < 5000) {
+        adjustScore(recipeId, -2);
+      } else if (elapsed >= 30000) {
+        adjustScore(recipeId, 3);
+        sendInteraction(recipeId, "view_long", user?.id);
+      } else {
+        sendInteraction(recipeId, "view_short", user?.id);
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipeId]);
@@ -275,10 +279,10 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                     </p>
                   </div>
                   <div className="flex flex-col items-center gap-0.5 py-4 px-2">
-                    <span className="text-xl mb-0.5">⭐</span>
-                    <p className="text-[11px] text-gray-400">Rating score</p>
+                    <span className="text-xl mb-0.5">🍽️</span>
+                    <p className="text-[11px] text-gray-400">Servings</p>
                     <p className="font-bold text-navy text-sm">
-                      {recipe.spoonacularScore != null ? Math.round(recipe.spoonacularScore) : "—"}
+                      {recipe.servings ?? "—"}
                     </p>
                   </div>
                 </div>

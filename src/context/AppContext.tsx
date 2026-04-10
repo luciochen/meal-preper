@@ -6,6 +6,8 @@ import { Recipe } from "@/lib/mockData";
 import { adjustScore } from "@/lib/recipeScores";
 import { trackUserRecipeAddedToMealPlan } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { getOrCreateAnonId, getAnonId, clearAnonId } from "@/lib/anonId";
+import { sendInteraction } from "@/lib/interactions";
 
 export interface MealPlanItem {
   recipe: Recipe;
@@ -150,6 +152,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // data will arrive whenever the load completes.
       loadFromSupabase(signedInUser.id).catch(() => {});
 
+      // Merge anonymous interaction history into this account (fire-and-forget)
+      const anonId = getAnonId();
+      if (anonId) {
+        fetch("/api/interactions/merge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ anon_id: anonId }),
+        }).then(() => clearAnonId()).catch(() => {});
+      }
+
       const action = localStorage.getItem("tangie_pending_action");
       if (action) { localStorage.removeItem("tangie_pending_action"); setPendingAction(action); }
     };
@@ -167,6 +179,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (done === "true") setOnboardingDoneState(true);
             const plan = localStorage.getItem("mealpreper_plan");
             if (plan) setMealPlan(JSON.parse(plan));
+            // Ensure anon UUID exists for interaction tracking
+            getOrCreateAnonId();
           } catch {}
         }
         setAuthLoading(false);
@@ -222,6 +236,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (recipe.is_user_recipe) {
       trackUserRecipeAddedToMealPlan(recipe.source_type ?? "manual");
     }
+    sendInteraction(recipe.id, "save", user?.id);
     setMealPlan((prev) => {
       const exists = prev.find((i) => i.recipe.id === recipe.id);
       const next = exists
@@ -238,6 +253,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const removeFromMealPlan = useCallback((recipeId: number | string) => {
     adjustScore(recipeId, -3);
+    // Strong view penalty: treat removal as a fresh view so the recipe is suppressed
+    sendInteraction(recipeId, "view_long", user?.id);
     setMealPlan((prev) => {
       const next = prev.filter((i) => String(i.recipe.id) !== String(recipeId));
       if (user) {
