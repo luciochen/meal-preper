@@ -36,6 +36,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "service unavailable" }, { status: 503 });
   }
 
+  // Silently drop all signals from internal/test accounts
+  if (user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_internal")
+      .eq("user_id", user_id)
+      .maybeSingle();
+    if (profile?.is_internal) return NextResponse.json({ ok: true, skipped: true });
+  }
+
   // Deduplicate impression_miss within a 3-day window to keep table lean
   if (event_type === "impression_miss") {
     const identityFilter = user_id
