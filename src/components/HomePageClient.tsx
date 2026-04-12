@@ -27,6 +27,18 @@ type AddStep = "idle" | "choose" | "scratch" | "website" | "instagram" | "confir
 
 const FILTER_CATEGORIES = [
   {
+    key: "proteins" as const,
+    label: "Protein type",
+    chips: [
+      { id: "chicken",    label: "Chicken",     icon: "🍗" },
+      { id: "beef",       label: "Beef",        icon: "🥩" },
+      { id: "pork",       label: "Pork",        icon: "🐷" },
+      { id: "egg",        label: "Eggs",        icon: "🥚" },
+      { id: "seafood",    label: "Seafood",     icon: "🐟" },
+      { id: "vegetarian", label: "Vegetarian",  icon: "🌱" },
+    ],
+  },
+  {
     key: "cuisines" as const,
     label: "Cuisine",
     chips: [
@@ -51,18 +63,6 @@ const FILTER_CATEGORIES = [
       { id: "high protein", label: "High protein", icon: "💪" },
       { id: "low calorie", label: "Low calorie", icon: "⚡" },
       { id: "easy to cook", label: "Easy to cook", icon: "👨‍🍳" },
-    ],
-  },
-  {
-    key: "proteins" as const,
-    label: "Protein type",
-    chips: [
-      { id: "chicken",    label: "Chicken",     icon: "🍗" },
-      { id: "beef",       label: "Beef",        icon: "🥩" },
-      { id: "pork",       label: "Pork",        icon: "🐷" },
-      { id: "egg",        label: "Eggs",        icon: "🥚" },
-      { id: "seafood",    label: "Seafood",     icon: "🐟" },
-      { id: "vegetarian", label: "Vegetarian",  icon: "🌱" },
     ],
   },
   {
