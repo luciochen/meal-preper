@@ -371,7 +371,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                                       {pair.map((ing, ii) => (
                                         <div key={ii}>
                                           <p className="text-sm font-medium text-navy">{cap(ing.name)}</p>
-                                          <p className="text-xs text-gray-400 mt-0.5">
+                                          <p className="text-xs text-gray-600 mt-0.5">
                                             {(() => {
                                               const baseServings = recipe.servings || 1;
                                               const qty = parseQuantity(ing.quantity);
@@ -440,7 +440,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                                       {pair.map((ing, ii) => (
                                         <div key={`${ing.id}-${ii}`}>
                                           <p className="text-sm font-medium text-navy">{cap(ing.name)}</p>
-                                          <p className="text-xs text-gray-400 mt-0.5">
+                                          <p className="text-xs text-gray-600 mt-0.5">
                                             {(() => {
                                               const baseServings = recipe.servings || 1;
                                               if (ing.amount != null && ing.amount > 0) {
