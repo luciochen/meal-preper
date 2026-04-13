@@ -27,6 +27,34 @@ const similarCache = new Map<number | string, Recipe[]>();
 const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
 const sentenceCase = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
+/** Parse a quantity string like "2", "1/2", "1¼", "1 1/2" into a number. */
+function parseQuantity(q: string): number {
+  const s = q.trim()
+    .replace("¼", "1/4").replace("½", "1/2").replace("¾", "3/4")
+    .replace("⅓", "1/3").replace("⅔", "2/3")
+    .replace("⅛", "1/8").replace("⅜", "3/8").replace("⅝", "5/8").replace("⅞", "7/8");
+  // "1 1/2" mixed number
+  const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  // "1/2" fraction
+  const frac = s.match(/^(\d+)\/(\d+)$/);
+  if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
+  return parseFloat(s) || 0;
+}
+
+/** Format a number as a clean quantity string (e.g. 0.25 → "¼", 1.5 → "1½"). */
+function formatAmount(n: number): string {
+  if (n <= 0) return "—";
+  const FRACS: [number, string][] = [[1/8,"⅛"],[1/4,"¼"],[1/3,"⅓"],[3/8,"⅜"],[1/2,"½"],[5/8,"⅝"],[2/3,"⅔"],[3/4,"¾"],[7/8,"⅞"]];
+  const whole = Math.floor(n);
+  const dec = n - whole;
+  const frac = FRACS.find(([v]) => Math.abs(dec - v) < 0.04);
+  if (frac) return whole > 0 ? `${whole}${frac[1]}` : frac[1];
+  // Round to 2 sig figs for small numbers, 1 decimal for larger
+  const rounded = n < 10 ? Math.round(n * 4) / 4 : Math.round(n * 2) / 2;
+  return Number.isInteger(rounded) ? String(rounded) : String(Math.round(rounded * 100) / 100);
+}
+
 interface Props {
   recipeId: number | string;
   onClose: () => void;
@@ -344,7 +372,12 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                                         <div key={ii}>
                                           <p className="text-sm font-medium text-navy">{cap(ing.name)}</p>
                                           <p className="text-xs text-gray-400 mt-0.5">
-                                            {[ing.quantity, ing.unit].filter(Boolean).join(" ") || "—"}
+                                            {(() => {
+                                              const baseServings = recipe.servings || 1;
+                                              const qty = parseQuantity(ing.quantity);
+                                              const perServing = qty > 0 ? formatAmount(qty / baseServings) : (ing.quantity || "");
+                                              return [perServing, ing.unit].filter(Boolean).join(" ") || "—";
+                                            })()}
                                           </p>
                                         </div>
                                       ))}
@@ -408,9 +441,14 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                                         <div key={`${ing.id}-${ii}`}>
                                           <p className="text-sm font-medium text-navy">{cap(ing.name)}</p>
                                           <p className="text-xs text-gray-400 mt-0.5">
-                                            {ing.amount != null && ing.amount > 0
-                                              ? `${ing.amountDisplay ?? (Number.isInteger(ing.amount) ? ing.amount : Math.round(ing.amount * 100) / 100)}${ing.unit ? ` ${ing.unit}` : ""}`
-                                              : ing.raw || "—"}
+                                            {(() => {
+                                              const baseServings = recipe.servings || 1;
+                                              if (ing.amount != null && ing.amount > 0) {
+                                                const perServing = ing.amount / baseServings;
+                                                return `${formatAmount(perServing)}${ing.unit ? ` ${ing.unit}` : ""}`;
+                                              }
+                                              return ing.raw || "—";
+                                            })()}
                                           </p>
                                         </div>
                                       ))}
