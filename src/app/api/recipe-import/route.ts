@@ -148,6 +148,8 @@ Recipe title: ${recipe.title}
 Description: ${recipe.description || "(none)"}
 Ingredients:
 ${recipe.ingredients.map((ing, i) => `${i + 1}. ${ing}`).join("\n")}
+Instructions:
+${recipe.instructions.map((step, i) => `${i + 1}. ${step}`).join("\n")}
 
 Tasks:
 1. Identify the cuisine. Choose ONE from this list (or null if none fits):
@@ -168,6 +170,13 @@ Tasks:
 
 4. If description is empty or very short (under 20 words), write a 1–2 sentence description of the dish.
 
+5. Rewrite the instructions to be concise. Rules:
+   - One clear action per step — no filler, no redundant context
+   - Strip phrases like "feel free to", "if you like", "as needed", "make sure to"
+   - Merge trivial sub-steps (e.g. "transfer to plate" + "set aside") into the surrounding step
+   - Keep all temperatures, times, and quantities
+   - Preserve the same number of steps or fewer; never split steps
+
 Return ONLY valid JSON in this exact shape, no other text:
 {
   "cuisine": "Italian" | null,
@@ -175,7 +184,8 @@ Return ONLY valid JSON in this exact shape, no other text:
   "description": "string",
   "parsed_ingredients": [
     { "quantity": "2", "unit": "cups", "name": "flour" }
-  ]
+  ],
+  "instructions": ["Step 1 text", "Step 2 text"]
 }`;
 
   try {
@@ -198,6 +208,9 @@ Return ONLY valid JSON in this exact shape, no other text:
         ? enriched.diet_tags.filter((t: string) => VALID_DIET_TAGS.includes(t))
         : [],
       description: enriched.description?.trim() || recipe.description,
+      instructions: Array.isArray(enriched.instructions) && enriched.instructions.length > 0
+        ? enriched.instructions.map(String)
+        : recipe.instructions,
       // Store parsed ingredients as JSON string array for the form to consume
       ingredients: Array.isArray(enriched.parsed_ingredients)
         ? enriched.parsed_ingredients.map((p: { quantity?: string; unit?: string; name?: string }) =>
@@ -253,6 +266,7 @@ Return ONLY valid JSON in this exact shape (no other text). Use null for fields 
 
 cuisine must be one of: ${VALID_CUISINES.join(", ")}, or null.
 diet_tags must be a subset of: ${VALID_DIET_TAGS.join(", ")}.
+instructions: write each step concisely — one clear action, no filler words, keep all times and temperatures.
 If this page does not contain a recipe, return: { "error": "no_recipe_found" }`;
 
   try {
@@ -421,6 +435,7 @@ Return ONLY valid JSON in this exact shape (use null for fields you cannot find)
 
 cuisine must be one of: ${VALID_CUISINES.join(", ")}, or null.
 diet_tags must be a subset of: ${VALID_DIET_TAGS.join(", ")}.
+instructions: write each step concisely — one clear action, no filler words, keep all times and temperatures.
 If this caption does not contain a recipe, return: { "error": "no_recipe_found" }`;
 
   try {
