@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import type { InteractionEventType } from "@/lib/interactions";
 
 const VALID_EVENTS: InteractionEventType[] = [
+  "view",
   "view_short",
   "view_long",
   "save",
@@ -44,6 +45,24 @@ export async function POST(req: NextRequest) {
       .eq("user_id", user_id)
       .maybeSingle();
     if (profile?.is_internal) return NextResponse.json({ ok: true, skipped: true });
+  }
+
+  // Deduplicate view within a 1-hour window per identity+recipe
+  if (event_type === "view") {
+    const identityFilter = user_id
+      ? supabase.from("recipe_interactions").select("id", { count: "exact", head: true })
+          .eq("user_id", user_id)
+      : supabase.from("recipe_interactions").select("id", { count: "exact", head: true })
+          .eq("anon_id", anon_id!);
+
+    const { count } = await identityFilter
+      .eq("recipe_id", recipe_id)
+      .eq("event_type", "view")
+      .gte("created_at", new Date(Date.now() - 3_600_000).toISOString());
+
+    if (count && count > 0) {
+      return NextResponse.json({ ok: true, skipped: true });
+    }
   }
 
   // Deduplicate impression_miss within a 3-day window to keep table lean

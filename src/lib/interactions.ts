@@ -1,6 +1,6 @@
 import { getOrCreateAnonId } from "./anonId";
 
-export type InteractionEventType = "view_short" | "view_long" | "save" | "impression_miss";
+export type InteractionEventType = "view" | "view_short" | "view_long" | "save" | "impression_miss";
 
 interface InteractionPayload {
   recipe_id: string;

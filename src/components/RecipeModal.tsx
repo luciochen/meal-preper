@@ -138,6 +138,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
   useEffect(() => {
     openedAt.current = Date.now();
     adjustScore(recipeId, 2);
+    sendInteraction(recipeId, "view", user?.id);
     return () => {
       const elapsed = Date.now() - openedAt.current;
       if (elapsed < 5000) {

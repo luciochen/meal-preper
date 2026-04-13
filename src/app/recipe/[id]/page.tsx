@@ -9,6 +9,7 @@ import { Recipe, classifyIngredient } from "@/lib/mockData";
 
 import { formatTitle } from "@/lib/formatTitle";
 import { trackRecipeScrollDepth } from "@/lib/analytics";
+import { sendInteraction } from "@/lib/interactions";
 const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 const SECTION_ORDER = ["Produce", "Meat & Seafood", "Dairy & Eggs", "Pantry"];
 
@@ -43,7 +44,8 @@ export default function RecipePage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/spoonacular/${id}`)
+    sendInteraction(id, "view");
+    fetch(`/api/recipes/${id}`)
       .then((r) => r.json())
       .then((d) => {
         setRecipe(d);
@@ -51,7 +53,7 @@ export default function RecipePage() {
       })
       .finally(() => setLoading(false));
 
-    fetch(`/api/spoonacular/${id}/similar`)
+    fetch(`/api/recipes/${id}/similar`)
       .then((r) => r.json())
       .then((d) => setSimilar(Array.isArray(d) ? d.slice(0, 4) : []));
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
