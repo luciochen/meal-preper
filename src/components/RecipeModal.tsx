@@ -341,7 +341,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                 {/* Ingredients — user recipe grouped */}
                 {recipe.is_user_recipe && (recipe.ingredients_json?.length ?? 0) > 0 && (
                   <section>
-                    <h2 className="text-base font-bold text-navy mb-3">Ingredients <span className="text-xs font-normal text-gray-400">(per serving)</span></h2>
+                    <h2 className="text-base font-bold text-navy mb-3">Ingredients <span className="text-base font-bold text-navy">(per serving)</span></h2>
                     {(() => {
                       const grouped = SECTION_ORDER
                         .map((label) => ({
@@ -410,7 +410,7 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                 {/* Ingredients — Spoonacular grouped */}
                 {!recipe.is_user_recipe && (recipe.extendedIngredients?.length ?? 0) > 0 && (
                   <section>
-                    <h2 className="text-base font-bold text-navy mb-3">Ingredients <span className="text-xs font-normal text-gray-400">(per serving)</span></h2>
+                    <h2 className="text-base font-bold text-navy mb-3">Ingredients <span className="text-base font-bold text-navy">(per serving)</span></h2>
                     {(() => {
                       const grouped = SECTION_ORDER
                         .map((label) => ({
