@@ -297,21 +297,21 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                 <div className="bg-gray-50 rounded-2xl grid grid-cols-3 divide-x divide-gray-200">
                   <div className="flex flex-col items-center gap-0.5 py-4 px-2">
                     <span className="text-xl mb-0.5">🔥</span>
-                    <p className="text-[11px] text-gray-400">Calories</p>
+                    <p className="text-sm text-gray-400">Calories</p>
                     <p className="font-bold text-navy text-sm">
                       {recipe.calories != null ? Math.round(recipe.calories) : "—"}
                     </p>
                   </div>
                   <div className="flex flex-col items-center gap-0.5 py-4 px-2">
                     <span className="text-xl mb-0.5">⏱</span>
-                    <p className="text-[11px] text-gray-400">Prep time</p>
+                    <p className="text-sm text-gray-400">Prep time</p>
                     <p className="font-bold text-navy text-sm">
                       {recipe.readyInMinutes ? `${recipe.readyInMinutes} mins` : "—"}
                     </p>
                   </div>
                   <div className="flex flex-col items-center gap-0.5 py-4 px-2">
                     <span className="text-xl mb-0.5">📡</span>
-                    <p className="text-[11px] text-gray-400">Reheat friendly</p>
+                    <p className="text-sm text-gray-400">Reheat friendly</p>
                     <p className="font-bold text-navy text-sm">
                       {recipe.microwaveScore?.label ?? "—"}
                     </p>
