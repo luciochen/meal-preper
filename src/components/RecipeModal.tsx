@@ -27,12 +27,13 @@ const similarCache = new Map<number | string, Recipe[]>();
 const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
 const sentenceCase = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
-/** Parse a quantity string like "2", "1/2", "1¼", "1 1/2" into a number. */
+/** Parse a quantity string like "2", "1/2", "1 1/4", "1 1/2" into a number. */
 function parseQuantity(q: string): number {
+  // Normalize unicode fractions to ASCII
   const s = q.trim()
-    .replace("¼", "1/4").replace("½", "1/2").replace("¾", "3/4")
-    .replace("⅓", "1/3").replace("⅔", "2/3")
-    .replace("⅛", "1/8").replace("⅜", "3/8").replace("⅝", "5/8").replace("⅞", "7/8");
+    .replace("\u00BC", "1/4").replace("\u00BD", "1/2").replace("\u00BE", "3/4")
+    .replace("\u2153", "1/3").replace("\u2154", "2/3")
+    .replace("\u215B", "1/8").replace("\u215C", "3/8").replace("\u215D", "5/8").replace("\u215E", "7/8");
   // "1 1/2" mixed number
   const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
   if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
@@ -42,15 +43,17 @@ function parseQuantity(q: string): number {
   return parseFloat(s) || 0;
 }
 
-/** Format a number as a clean quantity string (e.g. 0.25 → "¼", 1.5 → "1½"). */
+/** Format a number as a clean quantity string (e.g. 0.25 -> "1/4", 1.5 -> "1 1/2"). */
 function formatAmount(n: number): string {
-  if (n <= 0) return "—";
-  const FRACS: [number, string][] = [[1/8,"⅛"],[1/4,"¼"],[1/3,"⅓"],[3/8,"⅜"],[1/2,"½"],[5/8,"⅝"],[2/3,"⅔"],[3/4,"¾"],[7/8,"⅞"]];
+  if (n <= 0) return "-";
+  const FRACS: [number, string][] = [
+    [1/8,"1/8"],[1/4,"1/4"],[1/3,"1/3"],[3/8,"3/8"],
+    [1/2,"1/2"],[5/8,"5/8"],[2/3,"2/3"],[3/4,"3/4"],[7/8,"7/8"],
+  ];
   const whole = Math.floor(n);
   const dec = n - whole;
   const frac = FRACS.find(([v]) => Math.abs(dec - v) < 0.04);
-  if (frac) return whole > 0 ? `${whole}${frac[1]}` : frac[1];
-  // Round to 2 sig figs for small numbers, 1 decimal for larger
+  if (frac) return whole > 0 ? `${whole} ${frac[1]}` : frac[1];
   const rounded = n < 10 ? Math.round(n * 4) / 4 : Math.round(n * 2) / 2;
   return Number.isInteger(rounded) ? String(rounded) : String(Math.round(rounded * 100) / 100);
 }
