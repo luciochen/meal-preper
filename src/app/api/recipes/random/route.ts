@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import { MOCK_RECIPES } from "@/lib/mockData";
+import { computeMicrowaveScore } from "@/lib/mealPrepUtils";
 
 function dbRowToRecipe(row: Record<string, unknown>) {
   const steps = (row.steps as { number: number; step: string }[]) || [];
@@ -15,7 +16,7 @@ function dbRowToRecipe(row: Record<string, unknown>) {
     cuisines: [],
     dishTypes: row.tags ?? [],
     fridgeLife: row.fridge_life,
-    microwaveScore: row.microwave_score,
+    microwaveScore: computeMicrowaveScore({ title: row.title as string, dishTypes: row.tags as string[] }),
     extendedIngredients: (row.ingredients as { name: string }[])?.map((ing, i) => ({
       id: i,
       name: ing.name,

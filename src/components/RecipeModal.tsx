@@ -310,10 +310,10 @@ export default function RecipeModal({ recipeId, onClose, onOpenRecipe, initialRe
                     </p>
                   </div>
                   <div className="flex flex-col items-center gap-0.5 py-4 px-2">
-                    <span className="text-xl mb-0.5">🍽️</span>
-                    <p className="text-[11px] text-gray-400">Servings</p>
+                    <span className="text-xl mb-0.5">📡</span>
+                    <p className="text-[11px] text-gray-400">Reheat friendly</p>
                     <p className="font-bold text-navy text-sm">
-                      {recipe.servings ?? "—"}
+                      {recipe.microwaveScore?.label ?? "—"}
                     </p>
                   </div>
                 </div>

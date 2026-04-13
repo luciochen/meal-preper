@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import { MOCK_RECIPES } from "@/lib/mockData";
 import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
+import { computeMicrowaveScore } from "@/lib/mealPrepUtils";
 
 function parseRawIngredient(raw: string): { amount: number; amountDisplay?: string; unit: string; parsedName: string } {
   const s = raw.trim().replace(/\s+/g, " ");
@@ -75,7 +76,7 @@ function dbRowToRecipe(row: Record<string, unknown>) {
     cuisines: [],
     dishTypes: row.tags ?? [],
     fridgeLife: row.fridge_life,
-    microwaveScore: row.microwave_score,
+    microwaveScore: computeMicrowaveScore({ title: row.title as string, dishTypes: row.tags as string[] }),
     extendedIngredients,
     analyzedInstructions: [{ steps }],
   };

@@ -32,49 +32,120 @@ export function computeMicrowaveScore(recipe: {
   const title = (recipe.title || "").toLowerCase();
   const dishTypes = (recipe.dishTypes || []).map((d) => d.toLowerCase());
 
+  // Salads and raw dishes — never reheat
+  if (
+    dishTypes.some((d) => d.includes("salad")) ||
+    title.includes("salad")
+  ) {
+    return {
+      level: "poor",
+      label: "Don't reheat",
+      tip: "Best enjoyed cold or at room temperature. Do not microwave.",
+    };
+  }
+
+  // Crispy / fried — texture is destroyed
   if (
     title.includes("fried") ||
     title.includes("crispy") ||
     title.includes("fries") ||
     title.includes("tempura") ||
-    title.includes("schnitzel")
+    title.includes("schnitzel") ||
+    title.includes("breaded")
   ) {
     return {
       level: "poor",
-      label: "Not Recommended",
-      tip: "Reheat in an air fryer or oven at 180°C for 5 minutes to restore crispiness. Microwave will make it soggy.",
+      label: "Don't reheat",
+      tip: "Reheat in an air fryer or oven at 180°C for 5 minutes instead — microwave kills the crunch.",
     };
   }
-  if (dishTypes.some((d) => d.includes("salad"))) {
+
+  // Braised, stewed, soupy — designed to sit in liquid, reheat like fresh
+  if (
+    dishTypes.some((d) => d.includes("soup") || d.includes("stew") || d.includes("curry")) ||
+    title.includes("curry") ||
+    title.includes("stew") ||
+    title.includes("braise") ||
+    title.includes("braised") ||
+    title.includes("chili") ||
+    title.includes("soup")
+  ) {
     return {
-      level: "poor",
-      label: "Serve Cold",
-      tip: "Do not microwave. Best enjoyed cold or at room temperature.",
+      level: "excellent",
+      label: "Just like fresh",
+      tip: "Heat for 2–3 minutes, stirring once halfway. Brothy and saucy dishes reheat beautifully.",
     };
   }
+
+  // Fish and seafood — texture degrades, smell intensifies
   if (
     title.includes("fish") ||
     title.includes("salmon") ||
     title.includes("tuna") ||
-    title.includes("shrimp")
+    title.includes("shrimp") ||
+    title.includes("prawn") ||
+    title.includes("seafood") ||
+    title.includes("cod") ||
+    title.includes("tilapia")
   ) {
     return {
       level: "fair",
-      label: "Reheat Gently",
-      tip: "Microwave at 60% power for 90 seconds. Full power will dry out or overcook the fish.",
+      label: "Lost in flavour/texture",
+      tip: "Microwave at 60% power for 90 seconds max. Fish dries out and the smell intensifies — oven is better.",
     };
   }
-  if (dishTypes.some((d) => d.includes("soup") || d.includes("stew") || d.includes("curry"))) {
+
+  // Chicken breast and other dry-heat chicken — dries out and goes rubbery
+  if (
+    title.includes("chicken breast") ||
+    title.includes("ranch chicken") ||
+    title.includes("grilled chicken")
+  ) {
+    return {
+      level: "fair",
+      label: "Lost in flavour/texture",
+      tip: "Add a splash of water or broth and cover tightly. Heat at 70% power for 90 seconds — chicken breast goes rubbery fast.",
+    };
+  }
+
+  // Eggs — rubbery when microwaved
+  if (
+    title.includes("egg") ||
+    title.includes("frittata") ||
+    title.includes("omelette") ||
+    title.includes("omelet")
+  ) {
+    return {
+      level: "fair",
+      label: "Lost in flavour/texture",
+      tip: "Heat gently at 50% power in 30-second bursts. Eggs go rubbery quickly in the microwave.",
+    };
+  }
+
+  // Ground meat, chicken thighs, tofu — forgiving proteins
+  if (
+    title.includes("ground") ||
+    title.includes("mince") ||
+    title.includes("chicken thigh") ||
+    title.includes("tofu") ||
+    title.includes("lentil") ||
+    title.includes("dal") ||
+    title.includes("dahl") ||
+    title.includes("bean") ||
+    title.includes("chickpea")
+  ) {
     return {
       level: "excellent",
-      label: "Microwave Friendly",
-      tip: "Heat for 2–3 minutes, stirring once halfway. Soups and stews reheat beautifully.",
+      label: "Just like fresh",
+      tip: "Cover and heat for 2–2.5 minutes, stirring halfway. Holds up well.",
     };
   }
+
+  // Default — reheats nicely with a bit of care
   return {
     level: "good",
-    label: "Reheats Well",
-    tip: "Cover with a damp paper towel and heat for 1.5–2 minutes, stirring once.",
+    label: "Reheats nicely",
+    tip: "Cover with a damp paper towel and heat for 1.5–2 minutes, stirring once halfway through.",
   };
 }
 

@@ -48,7 +48,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "A flavorful honey garlic glazed salmon that's perfect for meal prep.",
     fridgeLife: { days: "3", label: "3 Days" },
-    microwaveScore: { level: "fair", label: "Reheat Gently", tip: "Heat at 60% power for 90 seconds. Avoid overcooking or the fish will dry out." },
+    microwaveScore: { level: "fair", label: "Lost in flavour/texture", tip: "Heat at 60% power for 90 seconds. Avoid overcooking or the fish will dry out." },
     extendedIngredients: [
       { id: 1, name: "salmon fillets", amount: 4, unit: "pieces", aisle: "Seafood" },
       { id: 2, name: "honey", amount: 3, unit: "tbsp", aisle: "Condiments" },
@@ -80,7 +80,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "Classic Japanese-inspired chicken teriyaki over steamed rice, perfect for batch cooking.",
     fridgeLife: { days: "4", label: "4 Days" },
-    microwaveScore: { level: "excellent", label: "Microwave Friendly", tip: "Cover with a damp paper towel and heat for 2–2.5 minutes, stirring rice halfway through." },
+    microwaveScore: { level: "excellent", label: "Just like fresh", tip: "Cover with a damp paper towel and heat for 2–2.5 minutes, stirring rice halfway through." },
     extendedIngredients: [
       { id: 1, name: "chicken thighs", amount: 600, unit: "g", aisle: "Meat" },
       { id: 2, name: "soy sauce", amount: 4, unit: "tbsp", aisle: "Condiments" },
@@ -114,7 +114,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["salad", "side dish"],
     summary: "A vibrant, protein-packed quinoa salad loaded with fresh Mediterranean flavors.",
     fridgeLife: { days: "5", label: "5 Days" },
-    microwaveScore: { level: "poor", label: "Serve Cold", tip: "Best enjoyed cold or at room temperature. Do not microwave — the vegetables will become soggy." },
+    microwaveScore: { level: "poor", label: "Don't reheat", tip: "Best enjoyed cold or at room temperature. Do not microwave — the vegetables will become soggy." },
     extendedIngredients: [
       { id: 1, name: "quinoa", amount: 1.5, unit: "cups", aisle: "Pasta and Rice" },
       { id: 2, name: "cherry tomatoes", amount: 1, unit: "cup", aisle: "Produce" },
@@ -149,7 +149,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "Tender marinated beef bulgogi over rice with pickled vegetables.",
     fridgeLife: { days: "4", label: "4 Days" },
-    microwaveScore: { level: "excellent", label: "Microwave Friendly", tip: "Heat for 2–3 minutes, stirring halfway. Add a splash of water to keep the beef moist." },
+    microwaveScore: { level: "excellent", label: "Just like fresh", tip: "Heat for 2–3 minutes, stirring halfway. Add a splash of water to keep the beef moist." },
     extendedIngredients: [
       { id: 1, name: "beef sirloin", amount: 500, unit: "g", aisle: "Meat" },
       { id: 2, name: "soy sauce", amount: 4, unit: "tbsp", aisle: "Condiments" },
@@ -184,7 +184,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "Juicy oven-roasted chicken breasts infused with lemon and fresh herbs.",
     fridgeLife: { days: "4", label: "4 Days" },
-    microwaveScore: { level: "good", label: "Reheat Well", tip: "Add a tablespoon of water or broth, cover, and heat for 1.5–2 minutes to keep it juicy." },
+    microwaveScore: { level: "good", label: "Reheats nicely", tip: "Add a tablespoon of water or broth, cover, and heat for 1.5–2 minutes to keep it juicy." },
     extendedIngredients: [
       { id: 1, name: "chicken breast", amount: 4, unit: "pieces", aisle: "Meat" },
       { id: 2, name: "lemon", amount: 2, unit: "whole", aisle: "Produce" },
@@ -216,7 +216,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "Quick and flavorful plant-based tacos packed with spiced black beans and roasted vegetables.",
     fridgeLife: { days: "4", label: "4 Days" },
-    microwaveScore: { level: "good", label: "Reheat Well", tip: "Heat filling for 1–2 minutes. Warm tortillas separately in a dry pan for best texture." },
+    microwaveScore: { level: "good", label: "Reheats nicely", tip: "Heat filling for 1–2 minutes. Warm tortillas separately in a dry pan for best texture." },
     extendedIngredients: [
       { id: 1, name: "canned black beans", amount: 2, unit: "cans", aisle: "Canned and Jarred" },
       { id: 2, name: "bell peppers", amount: 3, unit: "whole", aisle: "Produce" },
@@ -250,7 +250,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "Aromatic and creamy Thai green curry with chicken and vegetables.",
     fridgeLife: { days: "4", label: "4 Days" },
-    microwaveScore: { level: "excellent", label: "Microwave Friendly", tip: "Heat for 2–3 minutes, stirring once. Curries reheat beautifully and flavors intensify." },
+    microwaveScore: { level: "excellent", label: "Just like fresh", tip: "Heat for 2–3 minutes, stirring once. Curries reheat beautifully and flavors intensify." },
     extendedIngredients: [
       { id: 1, name: "chicken thighs", amount: 500, unit: "g", aisle: "Meat" },
       { id: 2, name: "coconut milk", amount: 1, unit: "can", aisle: "Canned and Jarred" },
@@ -285,7 +285,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "Light and colorful pasta loaded with spring vegetables and a simple olive oil sauce.",
     fridgeLife: { days: "3", label: "3 Days" },
-    microwaveScore: { level: "good", label: "Reheat Well", tip: "Add a splash of water before microwaving to prevent the pasta from drying out. Heat for 1.5 minutes." },
+    microwaveScore: { level: "good", label: "Reheats nicely", tip: "Add a splash of water before microwaving to prevent the pasta from drying out. Heat for 1.5 minutes." },
     extendedIngredients: [
       { id: 1, name: "penne pasta", amount: 400, unit: "g", aisle: "Pasta and Rice" },
       { id: 2, name: "cherry tomatoes", amount: 1, unit: "cup", aisle: "Produce" },
@@ -320,7 +320,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "Comforting and nutritious red lentil dal with aromatic Indian spices.",
     fridgeLife: { days: "5", label: "5 Days" },
-    microwaveScore: { level: "excellent", label: "Microwave Friendly", tip: "Heat for 2–3 minutes, stirring once. Dal actually tastes better the next day as flavors develop." },
+    microwaveScore: { level: "excellent", label: "Just like fresh", tip: "Heat for 2–3 minutes, stirring once. Dal actually tastes better the next day as flavors develop." },
     extendedIngredients: [
       { id: 1, name: "red lentils", amount: 2, unit: "cups", aisle: "Pasta and Rice" },
       { id: 2, name: "canned diced tomatoes", amount: 1, unit: "can", aisle: "Canned and Jarred" },
@@ -355,7 +355,7 @@ export const MOCK_RECIPES: Recipe[] = [
     dishTypes: ["main course"],
     summary: "A classic Japanese beef rice bowl with sweet and savory soy-based sauce.",
     fridgeLife: { days: "3", label: "3 Days" },
-    microwaveScore: { level: "excellent", label: "Microwave Friendly", tip: "Heat for 2 minutes with a splash of water. The broth helps keep everything moist." },
+    microwaveScore: { level: "excellent", label: "Just like fresh", tip: "Heat for 2 minutes with a splash of water. The broth helps keep everything moist." },
     extendedIngredients: [
       { id: 1, name: "beef sirloin", amount: 400, unit: "g", aisle: "Meat" },
       { id: 2, name: "onion", amount: 2, unit: "medium", aisle: "Produce" },

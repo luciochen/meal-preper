@@ -3,6 +3,7 @@ import { createPublicClient } from "@/lib/supabase/server";
 import { getTranslation, DEFAULT_LOCALE, RecipeTranslations } from "@/lib/i18n";
 import { filterByIngredients, filterByTitle } from "@/lib/fuzzySearch";
 import { PROTEIN_KEYWORDS } from "@/lib/feedDiversity";
+import { computeMicrowaveScore } from "@/lib/mealPrepUtils";
 
 const DIET_TAG_MAP: Record<string, string[]> = {
   "vegan":          ["vegan"],
@@ -29,7 +30,7 @@ function dbRowToRecipe(row: Record<string, unknown>) {
     cuisines: [],
     dishTypes: row.tags ?? [],
     fridgeLife: row.fridge_life,
-    microwaveScore: row.microwave_score,
+    microwaveScore: computeMicrowaveScore({ title: row.title as string, dishTypes: (row.tags as string[]) ?? [] }),
     extendedIngredients: baseIngredients.map((ing, i) => ({
       id: i,
       name: t?.ingredients?.[i]?.name ?? ing.name,

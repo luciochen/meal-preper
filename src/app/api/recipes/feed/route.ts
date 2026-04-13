@@ -18,6 +18,7 @@ import {
   type UserAffinityProfile,
 } from "@/lib/feedScoring";
 import { applyDiversity, PROTEIN_KEYWORDS } from "@/lib/feedDiversity";
+import { computeMicrowaveScore } from "@/lib/mealPrepUtils";
 import type { Recipe } from "@/lib/mockData";
 
 // ── Reused filter helpers (mirrors /api/recipes/search) ──────────────────────
@@ -50,7 +51,7 @@ function dbRowToRecipe(row: Record<string, unknown>): Recipe {
     cuisines: tags,
     dishTypes: tags,
     fridgeLife: row.fridge_life as Recipe["fridgeLife"],
-    microwaveScore: row.microwave_score as Recipe["microwaveScore"],
+    microwaveScore: computeMicrowaveScore({ title: row.title as string, dishTypes: tags }),
     extendedIngredients: baseIngredients.map((ing, i) => ({
       id: i,
       name: t?.ingredients?.[i]?.name ?? ing.name,
