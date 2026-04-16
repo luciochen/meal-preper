@@ -97,7 +97,7 @@ function toggle(id: string, list: string[]): string[] {
 const MY_RECIPES_ROW_LIMIT = 4;
 
 export default function HomePageClient() {
-  const { preferences, setPreferences, user, pendingAction, clearPendingAction } = useApp();
+  const { preferences, setPreferences, user, authLoading, pendingAction, clearPendingAction } = useApp();
   const [addStep, setAddStep] = useState<AddStep>("idle");
   const [scrapedData, setScrapedData] = useState<ScrapedRecipe | null>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -311,8 +311,20 @@ const impressedIds = useRef<Set<string>>(new Set());
 
   return (
     <div>
-      {/* My recipes section */}
-      <section className="mb-10">
+      {/* Get started CTA — shown below hero for logged-out users */}
+      {!authLoading && !user && (
+        <div className="mb-10">
+          <Link
+            href="/onboarding"
+            className="inline-block bg-navy text-white font-semibold px-6 py-3 rounded-xl hover:bg-navy/90 transition-colors"
+          >
+            Get started
+          </Link>
+        </div>
+      )}
+
+      {/* My recipes section — hidden for logged-out users */}
+      {user && <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-navy">My recipes</h2>
           {user && userRecipesTotal > 0 && (
@@ -375,7 +387,7 @@ const impressedIds = useRef<Set<string>>(new Set());
             </button>
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Recipes section */}
       <section className="pt-0">
@@ -493,17 +505,32 @@ const impressedIds = useRef<Set<string>>(new Set());
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {recipes.map((recipe) => (
-                <div
-                  key={recipe.id}
-                  data-recipe-id={String(recipe.id)}
-                  ref={(el) => { if (el) cardObserverRef.current?.observe(el); }}
-                >
-                  <RecipeCard recipe={recipe} onOpen={handleOpenRecipe} />
-                </div>
-              ))}
+            <div className={!authLoading && !user ? "relative overflow-hidden max-h-[480px] sm:max-h-[530px] lg:max-h-[600px]" : ""}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                {recipes.map((recipe) => (
+                  <div
+                    key={recipe.id}
+                    data-recipe-id={String(recipe.id)}
+                    ref={(el) => { if (el) cardObserverRef.current?.observe(el); }}
+                  >
+                    <RecipeCard recipe={recipe} onOpen={handleOpenRecipe} />
+                  </div>
+                ))}
+              </div>
+              {!authLoading && !user && (
+                <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#eef2ee] to-transparent pointer-events-none" />
+              )}
             </div>
+            {!authLoading && !user && (
+              <div className="flex justify-center mt-8">
+                <Link
+                  href="/onboarding"
+                  className="bg-navy text-white font-semibold px-6 py-3 rounded-xl hover:bg-navy/90 transition-colors"
+                >
+                  Get started
+                </Link>
+              </div>
+            )}
           </>
         )}
       </section>

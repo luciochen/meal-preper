@@ -116,7 +116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const [preferences, setPreferencesState] = useState<UserPreferences>({ diets: [], cuisines: [], allergies: [] });
-  const [onboardingDone, setOnboardingDoneState] = useState(true);
+  const [onboardingDone, setOnboardingDoneState] = useState(false);
   const [mealPlan, setMealPlan] = useState<MealPlanItem[]>([]);
 
   const supabaseRef = useRef(createClient());
