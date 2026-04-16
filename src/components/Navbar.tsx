@@ -5,11 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import LoginModal from "@/components/LoginModal";
+import FeedbackModal from "@/components/FeedbackModal";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { mealPlan, profile, authLoading, signOut } = useApp();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +38,12 @@ export default function Navbar() {
           </Link>
 
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <button
+              onClick={() => setShowFeedbackModal(true)}
+              className="hidden sm:block whitespace-nowrap text-sm font-medium text-gray-500 hover:text-navy transition-colors"
+            >
+              Share feedback
+            </button>
             <Link href="/my-recipes" className={`whitespace-nowrap text-sm font-medium transition-colors ${
               pathname === "/my-recipes" ? "text-navy" : "text-gray-500 hover:text-navy"
             }`}>
@@ -92,6 +100,7 @@ export default function Navbar() {
       </nav>
 
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+      {showFeedbackModal && <FeedbackModal onClose={() => setShowFeedbackModal(false)} />}
     </>
   );
 }
