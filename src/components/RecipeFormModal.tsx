@@ -131,7 +131,7 @@ function scrapedToForm(scraped: ScrapedRecipe & { _parsed_ingredients?: { quanti
 
 interface Props {
   mode: "create" | "edit";
-  sourceType?: "scratch" | "website" | "instagram";
+  sourceType?: "scratch" | "website" | "instagram" | "youtube";
   sourceUrl?: string;
   editingRecipe?: Recipe;
   scrapedData?: ScrapedRecipe;
@@ -365,7 +365,7 @@ export default function RecipeFormModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-lg font-extrabold text-navy">
-            {mode === "edit" ? "Edit recipe" : sourceType === "website" ? "Review imported recipe" : "Create recipe"}
+            {mode === "edit" ? "Edit recipe" : (sourceType === "website" || sourceType === "instagram" || sourceType === "youtube") ? "Review imported recipe" : "Create recipe"}
           </h2>
           <button
             onClick={onClose}

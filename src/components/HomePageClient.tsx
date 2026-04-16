@@ -11,6 +11,7 @@ import AddRecipeModal from "@/components/AddRecipeModal";
 import RecipeFormModal from "@/components/RecipeFormModal";
 import ImportWebsiteModal from "@/components/ImportWebsiteModal";
 import ImportInstagramModal from "@/components/ImportInstagramModal";
+import ImportYouTubeModal from "@/components/ImportYouTubeModal";
 import LoginModal from "@/components/LoginModal";
 import { useApp } from "@/context/AppContext";
 import { Recipe } from "@/lib/mockData";
@@ -23,7 +24,7 @@ import { sendInteraction } from "@/lib/interactions";
 import { getOrCreateAnonId } from "@/lib/anonId";
 import { FEED_FLAGS } from "@/lib/feedConfig";
 
-type AddStep = "idle" | "choose" | "scratch" | "website" | "instagram" | "confirm-import";
+type AddStep = "idle" | "choose" | "scratch" | "website" | "instagram" | "youtube" | "confirm-import";
 
 const FILTER_CATEGORIES = [
   {
@@ -100,6 +101,7 @@ export default function HomePageClient() {
   const { preferences, setPreferences, user, pendingAction, clearPendingAction } = useApp();
   const [addStep, setAddStep] = useState<AddStep>("idle");
   const [scrapedData, setScrapedData] = useState<ScrapedRecipe | null>(null);
+  const [importSourceType, setImportSourceType] = useState<"website" | "instagram" | "youtube">("website");
   const [showLogin, setShowLogin] = useState(false);
 
   // ── My recipes ─────────────────────────────────────────────────────────────
@@ -537,27 +539,34 @@ const impressedIds = useRef<Set<string>>(new Set());
       {addStep === "choose" && (
         <AddRecipeModal
           onClose={() => setAddStep("idle")}
-          onSelect={(method) => setAddStep(method === "website" ? "website" : method === "instagram" ? "instagram" : "scratch")}
+          onSelect={(method) => setAddStep(method === "website" ? "website" : method === "instagram" ? "instagram" : method === "youtube" ? "youtube" : "scratch")}
         />
       )}
       {addStep === "website" && (
         <ImportWebsiteModal
           onClose={() => setAddStep("choose")}
-          onImported={(data) => { setScrapedData(data); setAddStep("confirm-import"); }}
+          onImported={(data) => { setImportSourceType("website"); setScrapedData(data); setAddStep("confirm-import"); }}
           onAddManually={() => setAddStep("scratch")}
         />
       )}
       {addStep === "instagram" && (
         <ImportInstagramModal
           onClose={() => setAddStep("choose")}
-          onImported={(data) => { setScrapedData(data); setAddStep("confirm-import"); }}
+          onImported={(data) => { setImportSourceType("instagram"); setScrapedData(data); setAddStep("confirm-import"); }}
+          onAddManually={() => setAddStep("scratch")}
+        />
+      )}
+      {addStep === "youtube" && (
+        <ImportYouTubeModal
+          onClose={() => setAddStep("choose")}
+          onImported={(data) => { setImportSourceType("youtube"); setScrapedData(data); setAddStep("confirm-import"); }}
           onAddManually={() => setAddStep("scratch")}
         />
       )}
       {(addStep === "scratch" || addStep === "confirm-import") && (
         <RecipeFormModal
           mode="create"
-          sourceType={addStep === "confirm-import" ? "website" : "scratch"}
+          sourceType={addStep === "confirm-import" ? importSourceType : "scratch"}
           sourceUrl={addStep === "confirm-import" ? scrapedData?.source_url : undefined}
           scrapedData={addStep === "confirm-import" ? scrapedData ?? undefined : undefined}
           onClose={() => { setAddStep("idle"); setScrapedData(null); }}
