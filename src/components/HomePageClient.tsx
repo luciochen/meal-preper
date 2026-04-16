@@ -518,7 +518,7 @@ const impressedIds = useRef<Set<string>>(new Set());
                 ))}
               </div>
               {!authLoading && !user && (
-                <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#eef2ee] to-transparent pointer-events-none" />
+                <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#FAF8F2] to-transparent pointer-events-none" />
               )}
             </div>
             {!authLoading && !user && (
