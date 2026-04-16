@@ -24,6 +24,7 @@ const CUISINES = [
   { id: "thai", label: "Thai", icon: "🌶️" },
   { id: "french", label: "French", icon: "🥐" },
   { id: "mediterranean", label: "Mediterranean", icon: "🫒" },
+  { id: "american", label: "American", icon: "🍔" },
 ];
 
 const ALLERGENS = [
