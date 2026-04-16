@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 
-const STEPS = 3;
+const STEPS = 4;
 
 const DIETS = [
   { id: "vegan", label: "Vegan", icon: "🌱" },
@@ -38,7 +38,7 @@ const ALLERGENS = [
   { id: "shellfish", label: "Shellfish", icon: "🦐" },
 ];
 
-const STEP_LABELS = ["Preferences", "Cuisines", "Allergies"];
+const STEP_LABELS = ["Preferences", "Cuisines", "Allergies", "Account"];
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
@@ -48,7 +48,7 @@ export default function OnboardingPage() {
   const [allergies, setAllergies] = useState<string[]>([]);
   const [noAllergies, setNoAllergies] = useState(false);
   const [finishing, setFinishing] = useState(false);
-  const { setPreferences, setOnboardingDone } = useApp();
+  const { setPreferences, setOnboardingDone, signInWithGoogle, user } = useApp();
   const router = useRouter();
 
   const toggle = (id: string, list: string[], setList: (v: string[]) => void) => {
@@ -65,13 +65,6 @@ export default function OnboardingPage() {
     setCuisines([]);
   };
 
-  const finish = (selectedDiets: string[], selectedCuisines: string[], selectedAllergies: string[]) => {
-    setPreferences({ diets: selectedDiets, cuisines: selectedCuisines, allergies: selectedAllergies });
-    setOnboardingDone(true);
-    setFinishing(true);
-    setTimeout(() => router.push("/"), 2500);
-  };
-
   const toggleNoAllergies = () => {
     setNoAllergies((v) => !v);
     setAllergies([]);
@@ -82,17 +75,43 @@ export default function OnboardingPage() {
     toggle(id, allergies, setAllergies);
   };
 
-  const handleFinish = () => {
-    finish(diets, surpriseMe ? [] : cuisines, noAllergies ? [] : allergies);
+  // If user becomes logged in while on step 4, complete onboarding
+  useEffect(() => {
+    if (step === 4 && user && !finishing) {
+      const prefs = {
+        diets,
+        cuisines: surpriseMe ? [] : cuisines,
+        allergies: noAllergies ? [] : allergies,
+      };
+      setPreferences(prefs);
+      setOnboardingDone(true);
+      setFinishing(true);
+      setTimeout(() => router.push("/"), 2500);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, step]);
+
+  // "Skip all" jumps straight to the auth step
+  const handleSkip = () => {
+    setStep(STEPS);
   };
 
-  const handleSkip = () => {
-    finish([], [], []);
+  // Called before triggering OAuth — persists selections to localStorage so
+  // AppContext can migrate them to the DB after sign-in completes
+  const handleGoogleSignIn = () => {
+    const prefs = {
+      diets,
+      cuisines: surpriseMe ? [] : cuisines,
+      allergies: noAllergies ? [] : allergies,
+    };
+    setPreferences(prefs);
+    setOnboardingDone(true);
+    signInWithGoogle();
   };
 
   if (finishing) {
     return (
-      <div className="min-h-[calc(100vh-56px)] flex flex-col items-center justify-center px-4 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
         <div className="mb-6">
           <div className="w-14 h-14 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-5" />
           <h2 className="text-xl font-extrabold text-navy mb-2">Finding your recipes</h2>
@@ -103,7 +122,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 pb-10 min-h-[calc(100vh-56px)] flex flex-col">
+    <div className="max-w-md mx-auto px-4 pb-10 min-h-screen flex flex-col">
       {/* Progress */}
       <div className="py-6">
         <div className="flex items-center gap-2 mb-3">
@@ -115,7 +134,9 @@ export default function OnboardingPage() {
         </div>
         <div className="flex items-center justify-between">
           <p className="text-xs text-gray-400 font-medium">Step {step} of {STEPS} — {STEP_LABELS[step - 1]}</p>
-          <button onClick={handleSkip} className="text-xs text-gray-400 hover:text-gray-600 underline">Skip all</button>
+          {step < STEPS && (
+            <button onClick={handleSkip} className="text-xs text-gray-400 hover:text-gray-600 underline">Skip all</button>
+          )}
         </div>
       </div>
 
@@ -192,7 +213,6 @@ export default function OnboardingPage() {
             <h2 className="text-2xl font-extrabold text-navy mb-1">Food allergies</h2>
             <p className="text-gray-500 text-sm mb-6">We&apos;ll filter out recipes containing these ingredients.</p>
             <div className="space-y-2">
-              {/* No allergies option */}
               <button
                 onClick={toggleNoAllergies}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
@@ -238,6 +258,36 @@ export default function OnboardingPage() {
             </div>
           </div>
         )}
+
+        {/* Step 4: Sign up / Sign in */}
+        {step === 4 && (
+          <div>
+            <h2 className="text-2xl font-extrabold text-navy mb-1">Sign up to discover 200+ recipes</h2>
+            <p className="text-gray-500 text-sm mb-8">Save your preferences and meal plan across all your devices.</p>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+              <button
+                onClick={handleGoogleSignIn}
+                className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl border border-gray-200 bg-white font-semibold text-navy hover:bg-gray-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                Sign in with Google
+              </button>
+            </div>
+
+            <p className="text-center text-sm text-gray-500 mt-4">
+              Don&apos;t have an account?{" "}
+              <button onClick={handleGoogleSignIn} className="text-green-600 font-bold hover:underline">
+                Sign up
+              </button>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
@@ -250,19 +300,12 @@ export default function OnboardingPage() {
             Back
           </button>
         )}
-        {step < STEPS ? (
+        {step < STEPS && (
           <button
             onClick={() => setStep(step + 1)}
             className="flex-1 bg-navy text-white font-semibold py-3.5 rounded-xl hover:bg-navy/90 transition-colors"
           >
             Continue →
-          </button>
-        ) : (
-          <button
-            onClick={handleFinish}
-            className="flex-1 bg-green-500 text-white font-semibold py-3.5 rounded-xl hover:bg-green-600 transition-colors"
-          >
-            Find my recipes →
           </button>
         )}
       </div>

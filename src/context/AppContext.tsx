@@ -128,7 +128,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dbLoadPrefs(supabase, userId),
         dbLoadPlan(supabase, userId),
       ]);
-      if (prefs) setPreferencesState(prefs);
+      if (prefs) {
+        setPreferencesState(prefs);
+      } else {
+        // New user — migrate any preferences saved before sign-in (e.g. from onboarding)
+        const localPrefs = lsGetPrefs();
+        if (localPrefs.diets.length > 0 || localPrefs.cuisines.length > 0 || localPrefs.allergies.length > 0) {
+          setPreferencesState(localPrefs);
+          dbSavePrefs(supabase, userId, localPrefs).catch(() => {});
+        }
+      }
       setMealPlan(plan);
     } catch {
       // Silently ignore — SIGNED_IN will retry with a fresh token
