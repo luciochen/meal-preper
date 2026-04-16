@@ -168,6 +168,7 @@ const [recipes, setRecipes] = useState<Recipe[]>([]);
 const impressedIds = useRef<Set<string>>(new Set());
   const clickedIds = useRef<Set<string>>(new Set());
   const cardObserverRef = useRef<IntersectionObserver | null>(null);
+  const prefsAppliedRef = useRef(false);
 
   // Flush impressed-but-not-clicked recipes
   const flushImpressions = useCallback(() => {
@@ -281,6 +282,19 @@ const impressedIds = useRef<Set<string>>(new Set());
   }, [user?.id]);
 
   useEffect(() => { fetchRecipes(filters); }, [fetchRecipes]);
+
+  // Apply onboarding preferences to filters once, if the user hasn't set custom filters yet
+  useEffect(() => {
+    if (prefsAppliedRef.current) return;
+    const hasPrefs = preferences.diets.length > 0 || preferences.cuisines.length > 0 || preferences.allergies.length > 0;
+    if (!hasPrefs) return;
+    try { if (localStorage.getItem("zest_filters")) return; } catch {}
+    prefsAppliedRef.current = true;
+    const next: Filters = { diets: preferences.diets, cuisines: preferences.cuisines, types: [], allergies: preferences.allergies, proteins: [] };
+    setFilters(next);
+    try { localStorage.setItem("zest_filters", JSON.stringify(next)); } catch {}
+    fetchRecipes(next);
+  }, [preferences, fetchRecipes]);
 
   const saveFilters = (next: Filters) => {
     setFilters(next);
