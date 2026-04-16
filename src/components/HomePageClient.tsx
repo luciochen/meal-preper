@@ -396,73 +396,77 @@ const impressedIds = useRef<Set<string>>(new Set());
           <h2 className="text-xl font-bold text-navy">Discover</h2>
         </div>
 
-        {/* Search + Filter bar */}
-        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 no-scrollbar">
-          <SearchInput
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="flex-1 min-w-[160px] max-w-xs"
-          />
-          {FILTER_CATEGORIES.map((cat) => (
-            <FilterDropdown
-              key={cat.key}
-              label={cat.label}
-              count={filters[cat.key].length}
-              isOpen={openCategory === cat.key}
-              onToggleOpen={() => setOpenCategory(openCategory === cat.key ? null : cat.key)}
-            />
-          ))}
-          {totalActive > 0 && (
-            <button
-              onClick={clearAllFilters}
-              className="flex-shrink-0 text-xs text-gray-400 hover:text-gray-600 underline whitespace-nowrap"
-            >
-              Clear all
-            </button>
-          )}
-        </div>
-
-        {/* Inline chip panel — pushes content down, no overflow clipping */}
-        {openCat && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-3 mb-3 flex flex-wrap gap-2">
-            {openCat.chips.map((c) => {
-              const active = filters[openCat.key].includes(c.id);
-              return (
+        {/* Search + Filter bar — hidden for logged-out users */}
+        {user && (
+          <>
+            <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 no-scrollbar">
+              <SearchInput
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="flex-1 min-w-[160px] max-w-xs"
+              />
+              {FILTER_CATEGORIES.map((cat) => (
+                <FilterDropdown
+                  key={cat.key}
+                  label={cat.label}
+                  count={filters[cat.key].length}
+                  isOpen={openCategory === cat.key}
+                  onToggleOpen={() => setOpenCategory(openCategory === cat.key ? null : cat.key)}
+                />
+              ))}
+              {totalActive > 0 && (
                 <button
-                  key={c.id}
-                  onClick={() => updateFilter(openCat.key, c.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
-                    active
-                      ? "bg-navy text-white border-navy"
-                      : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
-                  }`}
+                  onClick={clearAllFilters}
+                  className="flex-shrink-0 text-xs text-gray-400 hover:text-gray-600 underline whitespace-nowrap"
                 >
-                  <span>{c.icon}</span>
-                  <span>{c.label}</span>
+                  Clear all
                 </button>
-              );
-            })}
-          </div>
-        )}
+              )}
+            </div>
 
-        {/* Active filter pills */}
-        {totalActive > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar mb-3">
-            {FILTER_CATEGORIES.flatMap((cat) =>
-              filters[cat.key].map((id) => {
-                const chip = cat.chips.find((c) => c.id === id);
-                return (
-                  <button
-                    key={`${cat.key}-${id}`}
-                    onClick={() => updateFilter(cat.key, id)}
-                    className="flex-shrink-0 flex items-center gap-1 text-xs bg-navy/10 text-navy font-medium px-2.5 py-1 rounded-full hover:bg-navy/20 transition-colors"
-                  >
-                    {chip?.label ?? id} ×
-                  </button>
-                );
-              })
+            {/* Inline chip panel — pushes content down, no overflow clipping */}
+            {openCat && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-3 mb-3 flex flex-wrap gap-2">
+                {openCat.chips.map((c) => {
+                  const active = filters[openCat.key].includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => updateFilter(openCat.key, c.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                        active
+                          ? "bg-navy text-white border-navy"
+                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400"
+                      }`}
+                    >
+                      <span>{c.icon}</span>
+                      <span>{c.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
-          </div>
+
+            {/* Active filter pills */}
+            {totalActive > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar mb-3">
+                {FILTER_CATEGORIES.flatMap((cat) =>
+                  filters[cat.key].map((id) => {
+                    const chip = cat.chips.find((c) => c.id === id);
+                    return (
+                      <button
+                        key={`${cat.key}-${id}`}
+                        onClick={() => updateFilter(cat.key, id)}
+                        className="flex-shrink-0 flex items-center gap-1 text-xs bg-navy/10 text-navy font-medium px-2.5 py-1 rounded-full hover:bg-navy/20 transition-colors"
+                      >
+                        {chip?.label ?? id} ×
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Grid */}
