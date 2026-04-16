@@ -25,6 +25,8 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, [dropdownOpen]);
 
+  if (pathname === "/onboarding") return null;
+
   return (
     <>
       {/* Mobile: full-width rectangular bar flush to top. Desktop: floating pill with margin */}
@@ -41,7 +43,11 @@ export default function Navbar() {
             }`}>
               <span className="hidden sm:inline">My </span>Recipes
             </Link>
-            <Link href="/meal-plan" className="flex items-center gap-1.5 group flex-shrink-0">
+            <Link
+              href="/meal-plan"
+              onClick={(e) => { if (!profile) { e.preventDefault(); setShowLoginModal(true); } }}
+              className="flex items-center gap-1.5 group flex-shrink-0"
+            >
               <span className={`whitespace-nowrap text-sm font-medium transition-colors ${
                 pathname === "/meal-plan" ? "text-navy" : "text-gray-500 group-hover:text-navy"
               }`}>
