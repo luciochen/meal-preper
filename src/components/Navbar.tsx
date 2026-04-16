@@ -37,7 +37,7 @@ export default function Navbar() {
             <img src="/logo.jpg" alt="Tangie" className="h-8 w-auto object-contain" />
           </Link>
 
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-6 min-w-0">
             <button
               onClick={() => setShowFeedbackModal(true)}
               className="hidden sm:block whitespace-nowrap text-sm font-medium text-gray-500 hover:text-navy transition-colors"
