@@ -531,7 +531,7 @@ const impressedIds = useRef<Set<string>>(new Set());
                   href="/onboarding"
                   className="bg-navy text-white font-semibold px-6 py-3 rounded-xl hover:bg-navy/90 transition-colors"
                 >
-                  Discover 200+ recipes
+                  Get personalized recipes
                 </Link>
               </div>
             )}
