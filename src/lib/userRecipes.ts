@@ -1,4 +1,5 @@
 import { Recipe } from "@/lib/mockData";
+import { computeMicrowaveScore, computeFridgeLife } from "@/lib/mealPrepUtils";
 
 export interface UserRecipeIngredient {
   quantity: string;
@@ -60,6 +61,8 @@ export function userRecipeToRecipe(ur: UserRecipe): Recipe {
       : [],
     is_user_recipe: true,
     user_id: ur.user_id,
+    microwaveScore: computeMicrowaveScore({ title: ur.title, dishTypes: ur.diet_tags }),
+    fridgeLife: computeFridgeLife({ title: ur.title, diets: ur.diet_tags }),
     source_type: ur.source_type,
     source_url: ur.source_url,
     ingredients_json: ur.ingredients_json,

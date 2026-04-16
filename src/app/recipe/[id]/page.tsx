@@ -146,7 +146,7 @@ export default function RecipePage() {
             </div>
             <div className="bg-white rounded-2xl p-3 flex flex-col items-start gap-1">
               <span className="text-lg">📡</span>
-              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Microwave</p>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Microwave reheat</p>
               <p className="font-bold text-navy text-sm">{recipe.microwaveScore?.label ?? "Good"}</p>
             </div>
           </div>

@@ -6,7 +6,8 @@ export type FeedPhase = 1 | 2 | 3;
  *   2 = view_penalty + affinity_boost + diversity
  *   3 = full social scoring enabled (requires ~50% recipes with 5+ savers)
  */
-export const CURRENT_PHASE: FeedPhase = 1;
+// eslint-disable-next-line @typescript-eslint/no-inferrable-types
+export const CURRENT_PHASE: FeedPhase = 2 as FeedPhase;
 
 export const FEED_FLAGS = {
   randomShuffle:    CURRENT_PHASE === 1,
