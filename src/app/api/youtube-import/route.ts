@@ -145,31 +145,66 @@ ${description.slice(0, 6000)}`;
   }
 }
 
-/** Fetch auto-generated captions from YouTube and return as plain text */
+/** Fetch auto-generated captions by parsing the YouTube watch page */
 async function fetchTranscript(videoId: string): Promise<string | null> {
-  // Try English first, fall back to any available language
-  for (const lang of ["en", "en-US", ""]) {
+  try {
+    // Fetch the watch page — this works for both regular videos and Shorts
+    const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!pageRes.ok) return null;
+    const html = await pageRes.text();
+
+    // Extract ytInitialPlayerResponse JSON blob
+    const match = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+    if (!match) return null;
+
+    let playerResponse: Record<string, unknown>;
     try {
-      const langParam = lang ? `&lang=${lang}` : "";
-      const res = await fetch(
-        `https://www.youtube.com/api/timedtext?v=${videoId}${langParam}&fmt=json3`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (!data.events?.length) continue;
-      const text = (data.events as Array<{ segs?: Array<{ utf8?: string }> }>)
-        .filter((e) => e.segs)
-        .map((e) => e.segs!.map((s) => s.utf8 ?? "").join(""))
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (text.length > 50) return text;
+      playerResponse = JSON.parse(match[1]);
     } catch {
-      // try next language
+      return null;
     }
+
+    // Find caption tracks
+    const tracks = (
+      playerResponse?.captions as Record<string, unknown> | undefined
+    )?.playerCaptionsTracklistRenderer as Record<string, unknown> | undefined;
+    const captionList = tracks?.captionTracks as Array<{ baseUrl: string; languageCode: string; kind?: string }> | undefined;
+    if (!captionList?.length) return null;
+
+    // Prefer English auto-generated, then any English, then first available
+    const preferred =
+      captionList.find((t) => t.languageCode === "en" && t.kind === "asr") ||
+      captionList.find((t) => t.languageCode.startsWith("en")) ||
+      captionList[0];
+
+    if (!preferred?.baseUrl) return null;
+
+    // Fetch the caption XML
+    const captionRes = await fetch(preferred.baseUrl + "&fmt=json3", {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!captionRes.ok) return null;
+
+    const captionData = await captionRes.json();
+    if (!captionData.events?.length) return null;
+
+    const text = (captionData.events as Array<{ segs?: Array<{ utf8?: string }> }>)
+      .filter((e) => e.segs)
+      .map((e) => e.segs!.map((s) => s.utf8 ?? "").join(""))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return text.length > 50 ? text : null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /** Extract recipe from auto-generated transcript (for short videos) */
