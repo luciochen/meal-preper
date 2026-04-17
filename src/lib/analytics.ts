@@ -74,7 +74,7 @@ export function trackRecipeImportStarted(page: "my-recipes" | "homepage") {
 }
 
 /** Fired when the user selects an import method in the choose modal */
-export function trackRecipeImportMethodSelected(method: "website" | "manual" | "instagram") {
+export function trackRecipeImportMethodSelected(method: "website" | "manual" | "instagram" | "youtube") {
   track("recipe_import_method_selected", { method });
 }
 
@@ -93,7 +93,7 @@ export function trackRecipeImportAbandoned(step: "choose" | "website" | "instagr
 
 /** Fired when a recipe is successfully saved through the import flow */
 export function trackRecipeImportCompleted(params: {
-  method: "scratch" | "website" | "instagram";
+  method: "scratch" | "website" | "instagram" | "youtube";
   had_image: boolean;
   ingredient_count: number;
   ai_enriched: boolean;
