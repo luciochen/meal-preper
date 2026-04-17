@@ -215,19 +215,20 @@ export async function POST(req: NextRequest) {
     } catch { /* fall through */ }
   }
 
-  // 2. For short videos, try captions
+  // 2. For short videos, try captions first, then fall back to title-only extraction
   if (!extracted && durationSeconds <= 300) {
     const captionText = await fetchCaptionText(captionTracks);
     if (captionText) {
       extracted = await callClaude(`${EXTRACT_PROMPT}\n\nVideo title: ${title}\n\nTranscript:\n${captionText.slice(0, 6000)}`);
     }
+    // No captions (silent video / Short) — ask Claude to infer recipe from title alone
+    if (!extracted) {
+      extracted = await callClaude(`${EXTRACT_PROMPT}\n\nVideo title: ${title}\n\nNote: This is a very short cooking video with no transcript available. Based on the title, infer a reasonable recipe. If the title is too vague to produce a meaningful recipe, return { "error": "no_recipe_found" }.`);
+    }
   }
 
   // 3. Long video with no usable content
   if (!extracted) {
-    if (durationSeconds > 300) {
-      return NextResponse.json({ error: "no_recipe_found" }, { status: 400 });
-    }
     return NextResponse.json({ error: "no_recipe_found" }, { status: 400 });
   }
 
