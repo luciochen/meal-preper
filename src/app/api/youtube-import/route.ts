@@ -145,22 +145,53 @@ ${description.slice(0, 6000)}`;
   }
 }
 
-/** Send the YouTube URL to Claude for direct video analysis */
-async function extractFromVideo(youtubeUrl: string): Promise<Record<string, unknown> | null> {
+/** Fetch auto-generated captions from YouTube and return as plain text */
+async function fetchTranscript(videoId: string): Promise<string | null> {
+  // Try English first, fall back to any available language
+  for (const lang of ["en", "en-US", ""]) {
+    try {
+      const langParam = lang ? `&lang=${lang}` : "";
+      const res = await fetch(
+        `https://www.youtube.com/api/timedtext?v=${videoId}${langParam}&fmt=json3`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data.events?.length) continue;
+      const text = (data.events as Array<{ segs?: Array<{ utf8?: string }> }>)
+        .filter((e) => e.segs)
+        .map((e) => e.segs!.map((s) => s.utf8 ?? "").join(""))
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (text.length > 50) return text;
+    } catch {
+      // try next language
+    }
+  }
+  return null;
+}
+
+/** Extract recipe from auto-generated transcript (for short videos) */
+async function extractFromTranscript(
+  videoId: string,
+  title: string
+): Promise<Record<string, unknown> | null> {
+  const transcript = await fetchTranscript(videoId);
+  if (!transcript) return null;
+
+  const prompt = `${EXTRACT_PROMPT}
+
+Video title: ${title}
+
+Auto-generated transcript:
+${transcript.slice(0, 6000)}`;
+
   try {
     const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: [
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            { type: "video", source: { type: "url", url: youtubeUrl } } as any,
-            { type: "text", text: EXTRACT_PROMPT },
-          ],
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
     });
     const text = (msg.content[0] as { type: string; text: string }).text.trim();
     const data = parseJsonResponse(text);
@@ -229,8 +260,8 @@ export async function POST(req: NextRequest) {
 
   if (!extracted) {
     if (durationSeconds <= 300) {
-      // Short video — analyse directly
-      extracted = await extractFromVideo(url);
+      // Short video — try transcript/captions
+      extracted = await extractFromTranscript(videoId, videoTitle);
     } else {
       // Long video, no recipe in description
       return NextResponse.json({ error: "no_recipe_found" }, { status: 400 });
