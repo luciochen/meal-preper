@@ -94,7 +94,7 @@ export default function FeedbackModal({ onClose }: Props) {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-gray-400 font-medium uppercase tracking-wide">
-                Email <span className="normal-case font-normal">(optional)</span>
+                Your email <span className="normal-case font-normal">(optional)</span>
               </label>
               <input
                 type="email"

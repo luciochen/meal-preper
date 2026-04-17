@@ -19,9 +19,9 @@ Next.js 15 App Router + Supabase + Tailwind CSS. Meal prep web app with recipe b
 ## UI Design System
 
 ### Writing
-- **Sentence case everywhere** — only capitalise the first word and proper nouns. No title case.
-  - ✓ "Add to meal plan", "Popular recipes", "Fridge life", "Prep instructions"
-  - ✗ "Add To Meal Plan", "Popular Recipes", "Fridge Life"
+- **Sentence case everywhere** — only capitalise the first word and proper nouns. No title case. This applies to all UI text including buttons, headings, labels, and input labels.
+  - ✓ "Add to meal plan", "Popular recipes", "Fridge life", "Prep instructions", "Your email (optional)", "Your message"
+  - ✗ "Add To Meal Plan", "Popular Recipes", "Fridge Life", "EMAIL (OPTIONAL)", "YOUR MESSAGE"
 
 ### Palette
 | Token | Value | Use |
