@@ -84,7 +84,7 @@ export default function AddRecipeModal({ onClose, onSelect }: Props) {
         <p className="text-sm text-gray-500 mb-6">How would you like to add it?</p>
 
         <div className="space-y-3">
-          {OPTIONS.map((opt) => (
+          {OPTIONS.filter((opt) => opt.id !== "instagram" && opt.id !== "youtube").map((opt) => (
             <button
               key={opt.id}
               disabled={opt.disabled}
