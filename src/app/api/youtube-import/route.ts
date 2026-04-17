@@ -150,6 +150,40 @@ async function callClaude(prompt: string): Promise<Record<string, unknown> | nul
   }
 }
 
+/** Infer a recipe purely from the video title — used when captions are unavailable */
+async function inferFromTitle(title: string): Promise<Record<string, unknown> | null> {
+  const prompt = `You are a recipe assistant. A user found a cooking video titled "${title}".
+Create a realistic recipe for this dish. You MUST return a recipe — do not refuse.
+
+Return ONLY valid JSON with NO markdown, exactly this shape:
+{
+  "title": "string",
+  "description": "1–2 sentence description",
+  "ingredients": ["quantity unit ingredient"],
+  "instructions": ["Step text"],
+  "prep_time": number_or_null,
+  "cook_time": number_or_null,
+  "servings": "string",
+  "cuisine": "one of: Italian, Chinese, Mexican, Japanese, Korean, Indian, Thai, French, Mediterranean, American, Middle Eastern, or null",
+  "diet_tags": [],
+  "parsed_ingredients": [{ "quantity": "string", "unit": "string", "name": "string" }]
+}`;
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = (msg.content[0] as { type: string; text: string }).text.trim();
+    const data = parseJsonResponse(text);
+    if (!data || !data.title) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 function buildScrapedRecipe(
   data: Record<string, unknown>,
   sourceUrl: string,
@@ -221,9 +255,9 @@ export async function POST(req: NextRequest) {
     if (captionText) {
       extracted = await callClaude(`${EXTRACT_PROMPT}\n\nVideo title: ${title}\n\nTranscript:\n${captionText.slice(0, 6000)}`);
     }
-    // No captions (silent video / Short) — ask Claude to infer recipe from title alone
+    // No captions — infer recipe from title alone
     if (!extracted) {
-      extracted = await callClaude(`${EXTRACT_PROMPT}\n\nVideo title: ${title}\n\nNote: This is a very short cooking video with no transcript available. Based on the title, infer a reasonable recipe. If the title is too vague to produce a meaningful recipe, return { "error": "no_recipe_found" }.`);
+      extracted = await inferFromTitle(title);
     }
   }
 
