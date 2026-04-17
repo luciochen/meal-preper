@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const message = (body.message as string | undefined)?.trim();
   const contactEmail = (body.contactEmail as string | undefined)?.trim();
 
-  if (!message || message.length < 5) {
+  if (!message || message.length < 1) {
     return NextResponse.json({ error: "Message too short" }, { status: 400 });
   }
 
