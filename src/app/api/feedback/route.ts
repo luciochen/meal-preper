@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error("[feedback]", JSON.stringify(error));
-    return NextResponse.json({ error: "Failed to send", detail: error }, { status: 500 });
+    return NextResponse.json({ error: "Failed to send" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
