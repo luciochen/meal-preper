@@ -17,7 +17,7 @@ interface GroceryMap {
   [category: string]: GroceryItem[];
 }
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trackCheckGroceryItem } from "@/lib/analytics";
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -82,9 +82,22 @@ function formatAmount(n: number): string | null {
 
 export default function MealPlanPage() {
   const { mealPlan, updateServings, removeFromMealPlan } = useApp();
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [checked, setChecked] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem("mealplan-checked");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [copied, setCopied] = useState(false);
   const [openRecipeId, setOpenRecipeId] = useState<number | string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("mealplan-checked", JSON.stringify(checked));
+    } catch {}
+  }, [checked]);
 
   const totalServings = mealPlan.reduce((a, i) => a + i.servings, 0);
 

@@ -176,7 +176,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const stored = localStorage.getItem("mealpreper_prefs");
             if (stored) setPreferencesState(JSON.parse(stored));
             const done = localStorage.getItem("mealpreper_onboarded");
-            if (done === "true") setOnboardingDoneState(true);
+            setOnboardingDoneState(done === "true");
             const plan = localStorage.getItem("mealpreper_plan");
             if (plan) setMealPlan(JSON.parse(plan));
             // Ensure anon UUID exists for interaction tracking

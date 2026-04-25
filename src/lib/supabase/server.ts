@@ -26,6 +26,16 @@ export async function createClient() {
   );
 }
 
+// Service-role client — bypasses RLS, use only in trusted server-side code
+export function createServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createServerClient(url, key, {
+    cookies: { getAll: () => [], setAll: () => {} },
+  });
+}
+
 // Simple client for API Route Handlers that only do public reads (no auth context needed)
 export function createPublicClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
