@@ -314,7 +314,7 @@ const impressedIds = useRef<Set<string>>(new Set());
   return (
     <div>
       {/* My recipes section */}
-      <section className="mb-10">
+      {user && <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-navy">My recipes</h2>
           {user && userRecipesTotal > 0 && (
@@ -377,7 +377,7 @@ const impressedIds = useRef<Set<string>>(new Set());
             </button>
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Recipes section */}
       <section className="pt-0">
